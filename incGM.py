@@ -39,6 +39,7 @@ class FRINGE:
         self.MIFS = []
         
 def EVALUATE(G, tau, pattern):
+    k = len(pattern)
     sgs_nodes = permutations(G.nodes, k)
     sgs =  [G.subgraph(i) for i in sgs_nodes]
     mni = MNI(pattern)
@@ -46,33 +47,59 @@ def EVALUATE(G, tau, pattern):
         embedding = isomorphism.GraphMatcher(pattern, i)
         if embedding.is_isomorphic():
             mni.add(embedding.mapping)
-    print(mni.table)
     return mni.support()>=tau
-
+def exist(u, arr):
+    for j in arr:
+        if same(j,u):
+            return True
+    return False
+def PRUNE(fringe, S):
+    fringe.MFS = [i for i in fringe.MFS if not subset(i,S)]
+    return
 def UPDATEFRINGE(fringe, S, isFreq, tau, G):
+    # return # of deleted in MIFS
+    count = 0
     if isFreq:
-        exist = False
-        for i in fringe.MFS:
-            if same(i,S):
-                exist=True
-        if not exist:
-            print('1', S.edges)
+        if not exist(S,fringe.MFS):
             fringe.MFS.append(S)
 
         for i in fringe.MIFS:
             if same(i,S):
-                print('2',i.edges)
                 fringe.MIFS.remove(i)
+                count += 1
                 break
         for i in fringe.MFS:
             if len(i) == len(S) and not same(i,S):
                 u = union(i,S)
-                if not EVALUATE(G, tau,u):
-                    exist=False
-                    for j in fringe.MIFS:
-                        if same(j,u):
-                            exist=True
-                    if not exist:
-                        print('3',u.edges)
-                        fringe.MIFS.append(u)
-    return
+                if not exist(u,fringe.MIFS):
+                    fringe.MIFS.append(u)
+    return count
+def subset(g1,g2):
+    # return if g1 <= g2
+    for i in g1.nodes:
+        if not g2.has_node(i):
+            return False
+    return True
+
+def incGM(G, fringe, tau, newedge):
+    newgraph = nx.Graph()
+    newgraph.add_edge(*newedge)
+    if not subset(newgraph, G):
+        fringe.MIFS.append(newgraph)
+    
+    G.add_edge(*e)
+    i = 0
+    while 0 <= i <len(fringe.MIFS):
+        S = fringe.MIFS[i]
+        isFreq = EVALUATE(G,tau,S)
+        delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
+        i = i + 1 - delete
+    return fringe.MFS
+
+G = nx.Graph()
+fringe = FRINGE()
+tau=3
+edges = [(0,1),(1,2),(2,3),(3,4)]
+for e in edges:
+    print()
+    print("MFS",[i.edges for i in incGM(G,fringe, tau, e)])
