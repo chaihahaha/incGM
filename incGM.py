@@ -21,7 +21,7 @@ class FRINGE:
     def __init__(self):
         self.MFS = []
         self.MIFS = []
-        
+
 class MNI:
     def __init__(self,pattern):
         self.nodes = pattern.nodes
@@ -39,7 +39,7 @@ class MNI:
     def support(self):
         v = self.supp.values()
         return min(v) if v else 0
-    
+
 def EVALUATE(G, tau, pattern):
     n_v = len(pattern)
     n_e = pattern.size()
@@ -120,7 +120,7 @@ def incGM(G, fringe, tau, newedge):
 
 G = nx.Graph()
 fringe = FRINGE()
-tau=10
+tau=5
 with open("citeseerInt.cites","r") as f:
     txt = f.read()
 edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
