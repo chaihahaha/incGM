@@ -40,6 +40,10 @@ class FRINGE:
         
 def EVALUATE(G, tau, pattern):
     k = len(pattern)
+    sgs_nodes = []
+    components = nx.connected_components(G)
+    for i in components:
+        sgs_nodes.append(permutations(list(i),k))
     sgs_nodes = permutations(G.nodes, k)
     sgs =  [G.subgraph(i) for i in sgs_nodes]
     mni = MNI(pattern)
@@ -98,8 +102,9 @@ def incGM(G, fringe, tau, newedge):
 
 G = nx.Graph()
 fringe = FRINGE()
-tau=3
-edges = [(0,1),(1,2),(2,3),(3,4)]
+tau=1
+edges = [(0,1),(0,2),(0,3),(0,4)]
+
 for e in edges:
     print()
-    print("MFS",[i.edges for i in incGM(G,fringe, tau, e)])
+    print("MFS",[list(i.edges) for i in incGM(G,fringe, tau, e)])
