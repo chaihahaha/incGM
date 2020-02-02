@@ -20,7 +20,7 @@ class MNI:
     def support(self):
         v = self.supp.values()
         return min(v) if v else 0
-    
+
 def neighbor(a,G):
     # neighbor of a in G
     return reduce(operator.add,[[(i,j) for j in G.neighbors(i) if j not in a.nodes] for i in a.nodes],[])
@@ -37,7 +37,7 @@ class FRINGE:
     def __init__(self):
         self.MFS = []
         self.MIFS = []
-        
+
 def EVALUATE(G, tau, pattern):
     k = len(pattern)
     sgs_nodes = []
@@ -90,7 +90,7 @@ def incGM(G, fringe, tau, newedge):
     newgraph.add_edge(*newedge)
     if not subset(newgraph, G):
         fringe.MIFS.append(newgraph)
-    
+
     G.add_edge(*e)
     i = 0
     while 0 <= i <len(fringe.MIFS):
@@ -102,8 +102,10 @@ def incGM(G, fringe, tau, newedge):
 
 G = nx.Graph()
 fringe = FRINGE()
-tau=1
-edges = [(0,1),(0,2),(0,3),(0,4)]
+tau=10
+with open("citeseerInt.cites","r") as f:
+    txt = f.read()
+edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
 
 for e in edges:
     print()
