@@ -1,5 +1,5 @@
 import networkx as nx
-from networkx.algorithms import isomorphism
+from itertools import combinations, permutations
 from itertools import permutations
 from functools import reduce
 import operator
@@ -28,33 +28,38 @@ def neighbor(a,G):
 def same(g1,g2):
     return (g1.nodes == g2.nodes) and (g1.edges == g2.edges)
 def union(g1,g2):
-    g=g1.copy()
-    g.add_nodes_from(g2.nodes)
-    g.add_edges_from(g2.edges)
-    return g
+    g=nx.Graph()
+    g.add_nodes_from(g2)
+    g.add_nodes_from(g1)
+    return g.nodes
 
 class FRINGE:
     def __init__(self):
-        self.MFS = []
-        self.MIFS = []
+        self.MFS = [] # store the maximal frequent subgraph nodes
+        self.MIFS = [] # store the minimal infrequent subgraph nodes
 
 def EVALUATE(G, tau, pattern):
     k = len(pattern)
+    pattern_nodes = list(pattern.nodes)
     sgs_nodes = []
     components = nx.connected_components(G)
     for i in components:
-        sgs_nodes.append(permutations(list(i),k))
-    sgs_nodes = permutations(G.nodes, k)
+        sgs_nodes.append(list(combinations(list(i),k)))
+    sgs_nodes = reduce(operator.add,sgs_nodes)
     sgs =  [G.subgraph(i) for i in sgs_nodes]
     mni = MNI(pattern)
-    for i in sgs:
-        embedding = isomorphism.GraphMatcher(pattern, i)
-        if embedding.is_isomorphic():
-            mni.add(embedding.mapping)
+    for i in range(len(sgs)):
+        gm = isomorphism.GraphMatcher(pattern, sgs[i])
+        is_iso = gm.is_isomorphic()
+        sg_perm = permutations(sgs_nodes[i])
+        if is_iso:
+            for j in sg_perm:
+                embedding = dict(zip(pattern_nodes,j))
+                mni.add(embedding)
     return mni.support()>=tau
 def exist(u, arr):
     for j in arr:
-        if same(j,u):
+        if j==u:
             return True
     return False
 def PRUNE(fringe, S):
@@ -68,12 +73,12 @@ def UPDATEFRINGE(fringe, S, isFreq, tau, G):
             fringe.MFS.append(S)
 
         for i in fringe.MIFS:
-            if same(i,S):
+            if i==S:
                 fringe.MIFS.remove(i)
                 count += 1
                 break
         for i in fringe.MFS:
-            if len(i) == len(S) and not same(i,S):
+            if len(i) == len(S) and not i==S:
                 u = union(i,S)
                 if not exist(u,fringe.MIFS):
                     fringe.MIFS.append(u)
@@ -89,13 +94,13 @@ def incGM(G, fringe, tau, newedge):
     newgraph = nx.Graph()
     newgraph.add_edge(*newedge)
     if not subset(newgraph, G):
-        fringe.MIFS.append(newgraph)
+        fringe.MIFS.append(newgraph.nodes)
 
     G.add_edge(*e)
     i = 0
     while 0 <= i <len(fringe.MIFS):
         S = fringe.MIFS[i]
-        isFreq = EVALUATE(G,tau,S)
+        isFreq = EVALUATE(G,tau,G.subgraph(S))
         delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
         i = i + 1 - delete
     return fringe.MFS
