@@ -1,6 +1,8 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
 from itertools import permutations
+from functools import reduce
+import operator
 class MNI:
     def __init__(self,pattern):
         self.nodes = pattern.nodes
@@ -17,6 +19,16 @@ class MNI:
             self.supp[i] = len(self.table[i].values())
     def support(self):
         return min(self.supp.values())
+    
+def neighbor(a,G):
+    # neighbor of a in G
+    return reduce(operator.add,[[(i,j) for j in G.neighbors(i) if j not in a.nodes] for i in a.nodes],[])
+
+class FRINGE:
+    def __init__(self):
+        self.MFS = set()
+        self.MIFS = set()
+        
 def EVALUATE(G, tau, pattern):
     sgs_nodes = permutations(G.nodes, k)
     sgs =  [G.subgraph(i) for i in sgs_nodes]
