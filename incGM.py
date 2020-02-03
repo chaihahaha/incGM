@@ -8,6 +8,20 @@ def neighbor(a,G):
     # neighbor of a in G
     return reduce(operator.add,[[(i,j) for j in G.neighbors(i) if j not in a.nodes] for i in a.nodes],[])
 
+def neighbor_graph(arr,G):
+    sgss = []
+    for a in arr:
+        edges = neighbor(a,G)
+        union_edges = nx.Graph()
+        union_edges.add_edges_from(a.edges)
+        sgs = []
+        for e in edges:
+            union_edges.add_edge(*e)
+            sgs.append(G.edge_subgraph(union_edges.edges))
+            union_edges.remove_edge(*e)
+        sgss += sgs
+    return sgss
+
 def same(g1,g2):
     return (g1.nodes == g2.nodes) and (g1.edges == g2.edges)
 
@@ -21,7 +35,7 @@ class FRINGE:
     def __init__(self):
         self.MFS = []
         self.MIFS = []
-
+        
 class MNI:
     def __init__(self,pattern):
         self.nodes = pattern.nodes
@@ -40,6 +54,54 @@ class MNI:
         v = self.supp.values()
         return min(v) if v else 0
 
+class FELS:
+    def __init__(self,S):
+        self.S = S
+        self.mni = MNI(self.S)
+        self.inverted_index = dict()
+    def add(self, embedding):
+        exists = False
+        for i in embedding.nodes:
+            if i in self.inverted_index.keys():
+                if not exist(embedding, self.inverted_index[i]):
+                    self.inverted_index[i].append(embedding)
+                else:
+                    exists = True
+            else:
+                self.inverted_index[i] = [embedding]
+        if not exists:
+            self.mni.add(dict(zip(list(self.S.nodes), list(embedding.nodes))))
+            
+            
+class FELS_dict:
+    def __init__(self):
+        self.elem = dict()
+    def add(self,S, fels):
+        self.elem[S] = fels
+
+def SEARCHLIMITED(S,newgraph,G):
+    n_v = len(S)
+    n_e = S.size()
+    neighbor_graphs = []
+    seed = [newgraph]
+    for i in range(n_e-1):
+        seed = neighbor_graph(seed,G)
+    embeddings = []
+    for i in seed:
+        if len(i)==n_v:
+            gm = isomorphism.GraphMatcher(i, S)
+            is_iso = gm.is_isomorphic()
+            if is_iso:
+                embeddings.append(i)
+    return embeddings
+        
+def FELSUpdate(embeds, S, fels_dict):
+    for embedding in embeds:
+        if S not in fels_dict.elem.keys():
+            fels_dict.add(S, FELS(S))
+        fels_dict.elem[S].add(embedding)
+        
+        
 def EVALUATE(G, tau, pattern):
     n_v = len(pattern)
     n_e = pattern.size()
@@ -114,6 +176,28 @@ def incGM(G, fringe, tau, newedge):
     while 0 <= i <len(fringe.MIFS):
         S = fringe.MIFS[i]
         isFreq = EVALUATE(G,tau,S)
+        delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
+        i = i + 1 - delete
+    return fringe.MFS
+
+fels_dict = FELS_dict()
+
+def incGM_plus(G, fringe, tau, newedge):
+    newgraph = nx.Graph()
+    newgraph.add_edge(*newedge)
+    if not subset(newgraph, G):
+        fringe.MIFS.append(newgraph)
+        
+    G.add_edge(*e)
+    i = 0
+    while 0 <= i <len(fringe.MIFS):
+        S = fringe.MIFS[i]
+        embeds = SEARCHLIMITED(S, newgraph,G)
+        if not embeds:
+            isFreq = EVALUATE(G,tau,S)
+        else:
+            FELSUpdate(embeds, S, fels_dict)
+            isFreq = fels_dict.elem[S].mni.support()>=tau
         delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
         i = i + 1 - delete
     return fringe.MFS
