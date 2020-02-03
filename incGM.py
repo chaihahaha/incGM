@@ -34,8 +34,8 @@ class FRINGE:
         self.MIFS = []
         
 class MNI_table:
-    def __init__(self,pattern):
-        self.nodes = pattern.nodes
+    def __init__(self,S):
+        self.nodes = S.nodes
         self.table = dict()
         for i in self.nodes:
             self.table[i]=dict()
@@ -58,17 +58,16 @@ class FELS:
         self.S = S
         self.mni = MNI_table(self.S)
         self.inverted_index = dict()
+        self.embeddings = []
     def add(self, embedding):
-        exists = False
-        for i in embedding.nodes:
-            if i in self.inverted_index.keys():
-                if not exist(embedding, self.inverted_index[i]):
+        exists = exist(embedding, self.embeddings)
+        if not exists:
+            for i in embedding.nodes:
+                if i in self.inverted_index.keys():
                     self.inverted_index[i].append(embedding)
                 else:
-                    exists = True
-            else:
-                self.inverted_index[i] = [embedding]
-        if not exists:
+                    self.inverted_index[i] = [embedding]
+            self.embeddings.append(embedding)
             self.mni.add(dict(zip(list(self.S.nodes), list(embedding.nodes))))
             
             
