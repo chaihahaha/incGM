@@ -123,7 +123,7 @@ def has_nodes(g, s):
 def FELSUpdate(embeds, S,tau):
     if S in fels_dict.elements.keys():
         valid_nodes = fels_dict.elem(S).inverted_index.keys()
-        embeds.sort(key=lambda i: has_nodes(i,valid_nodes))
+        embeds.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
     for embedding in embeds:
         fels_dict.add(S,embedding)
         if fels_dict.is_frequent(S, tau):
@@ -147,7 +147,7 @@ def EVALUATE(G, tau, S):
                 sgs.append(n_e_subgraph)
     if S in fels_dict.elements.keys():
         valid_nodes = fels_dict.elem(S).inverted_index.keys()
-        sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
+        sgs.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
     sgs_nodes = [i.nodes for i in sgs]
     if S not in fels_dict.elements.keys():
         fels_dict.add(S, S)
@@ -212,7 +212,7 @@ def incGM_plus(G, fringe, tau, newedge):
 
 G = nx.Graph()
 fringe = FRINGE()
-tau=5
+tau=200
 with open("citeseerInt.cites","r") as f:
     txt = f.read()
 edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
