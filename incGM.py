@@ -3,6 +3,7 @@ from networkx.algorithms import isomorphism
 from itertools import combinations
 from functools import reduce
 import operator
+import time
 
 def neighbor(a,G):
     # neighbor of a in G
@@ -59,6 +60,7 @@ class FELS:
         self.mni = MNI_table(self.S)
         self.inverted_index = dict()
         self.embeddings = []
+        self.blacklist = dict()
     def add(self, embedding):
         exists = exist(embedding, self.embeddings)
         if not exists:
@@ -101,6 +103,18 @@ class FELS_dict:
 
     def is_frequent(self, S, tau):
         return self.elem(S).mni.frequent(tau)
+    def blacklist(self, S, g):
+        self.add(S,S)
+        bl = self.elem(S).blacklist
+        for i in g.nodes:
+            if i in bl.keys():
+                bl[i] += 1
+            else:
+                bl[i] = 1
+    def invalid_nodes(self, S, n):
+        nodes = list(self.elem(S).blacklist.keys())
+        nodes.sort(key=self.elem(S).blacklist.get)
+        return nodes[:n]
 
 def SEARCHLIMITED(S,newgraph,G):
     n_v = len(S)
@@ -129,9 +143,6 @@ def has_nodes(g, s):
     return False
 
 def FELSUpdate(embeds, S,tau):
-    if S in fels_dict.keys():
-        valid_nodes = fels_dict.elem(S).inverted_index.keys()
-        embeds.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
     for embedding in embeds:
         fels_dict.add(S,embedding)
         if fels_dict.is_frequent(S, tau):
@@ -153,12 +164,9 @@ def EVALUATE(G, tau, S):
             n_e_subgraph = G.edge_subgraph(j)
             if nx.is_connected(n_e_subgraph):
                 sgs.append(n_e_subgraph)
-    if S in fels_dict.keys():
-        valid_nodes = fels_dict.elem(S).inverted_index.keys()
-        sgs.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
+    invalid_nodes = fels_dict.invalid_nodes(S,100)
+    sgs.sort(key=lambda i: has_nodes(i, invalid_nodes))
     sgs_nodes = [i.nodes for i in sgs]
-#     if S not in fels_dict.keys():
-#         fels_dict.add(S, S)
     count_iso = 0
     embedsS = fels_dict.elem(S).embeddings
     for i in range(len(sgs)):
@@ -167,8 +175,12 @@ def EVALUATE(G, tau, S):
             is_iso = gm.is_isomorphic()
             if is_iso:
                 fels_dict.add(S,sgs[i])
+            else:
+                fels_dict.blacklist(S, sgs[i])
+        elif fels_dict.is_frequent(sgs[i]):
+            return True
         if fels_dict.is_frequent(S, tau):
-                return True
+            return True
     return False
 
 def exist(u, arr):
