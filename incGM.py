@@ -174,8 +174,9 @@ def UPDATEFRINGE(fringe, S, isFreq, tau, G):
             MFSi = fringe.MFS[i]
             if len(MFSi) == len(S) and not same(MFSi,S):
                 u = union(MFSi,S,G)
-                if not EVALUATE(G,tau,u) and not exist(u,fringe.MIFS):
-                    fringe.MIFS.append(u)
+                if not exist(u,fringe.MIFS) and nx.is_connected(u):
+                    if not EVALUATE(G,tau,u):
+                        fringe.MIFS.append(u)
     return count
 
 def subset(g1,g2):
@@ -188,10 +189,10 @@ def subset(g1,g2):
 def incGM(G, fringe, tau, newedge):
     newgraph = nx.Graph()
     newgraph.add_edge(*newedge)
-    if not subset(newgraph, G):
+    if not G.has_edge(*newedge):
         fringe.MIFS.append(newgraph)
 
-    G.add_edge(*e)
+    G.add_edge(*newedge)
     i = 0
     while 0 <= i <len(fringe.MIFS):
         S = fringe.MIFS[i]
@@ -203,42 +204,16 @@ def incGM(G, fringe, tau, newedge):
 def MNI(S, tau):
     return fels_dict.elem[S].mni.frequent(tau)
 
-def UPDATEFRINGE_plus(fringe, S, isFreq, tau, G):
-    # return # of deleted in MIFS
-    count = 0
-    if isFreq:
-        if not exist(S,fringe.MFS):
-            fringe.MFS.append(S)
-
-        for i in fringe.MIFS:
-            if same(i,S):
-                fringe.MIFS.remove(i)
-                count += 1
-                break
-        for i in range(len(fringe.MFS)):
-            MFSi = fringe.MFS[i]
-            if len(MFSi) == len(S) and not same(MFSi,S):
-                u = union(MFSi,S,G)
-                if not exist(u,fringe.MIFS):
-                    embeds = SEARCHLIMITED(S, newgraph,G)
-                    if not embeds:
-                        isFreq = EVALUATE(G,tau,S)
-                    else:
-                        FELSUpdate(embeds, S, tau)
-                        isFreq = MNI(S, tau)
-                    if not isFreq:
-                        fringe.MIFS.append(u)
-    return count
-
 fels_dict = FELS_dict()
 
 def incGM_plus(G, fringe, tau, newedge):
     newgraph = nx.Graph()
     newgraph.add_edge(*newedge)
-    if not subset(newgraph, G):
+    if not G.has_edge(*newedge):
         fringe.MIFS.append(newgraph)
         
-    G.add_edge(*e)
+        
+    G.add_edge(*newedge)
     i = 0
     while 0 <= i <len(fringe.MIFS):
         S = fringe.MIFS[i]
@@ -248,7 +223,7 @@ def incGM_plus(G, fringe, tau, newedge):
         else:
             FELSUpdate(embeds, S, tau)
             isFreq = MNI(S, tau)
-        delete = UPDATEFRINGE_plus(fringe, S, isFreq, tau, G)
+        delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
         i = i + 1 - delete
     return fringe.MFS
 
