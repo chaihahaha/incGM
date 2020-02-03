@@ -62,13 +62,19 @@ class FELS:
     def add(self, embedding):
         exists = exist(embedding, self.embeddings)
         if not exists:
+            self.embeddings.append(embedding)
             for i in embedding.nodes:
                 if i in self.inverted_index.keys():
                     self.inverted_index[i].append(embedding)
                 else:
                     self.inverted_index[i] = [embedding]
-            self.embeddings.append(embedding)
-            self.mni.add(dict(zip(list(self.S.nodes), list(embedding.nodes))))
+            for i in self.S.nodes:
+                for j in self.inverted_index.keys():
+                    if j in self.mni.table[i].keys():
+                        self.mni.table[i][j] += 1
+                    else:
+                        self.mni.table[i][j] = 1
+                self.mni.supp[i] = len(self.mni.table[i].values())
             
             
 class FELS_dict:
@@ -197,6 +203,33 @@ def incGM(G, fringe, tau, newedge):
 def MNI(S, tau):
     return fels_dict.elem[S].mni.frequent(tau)
 
+def UPDATEFRINGE_plus(fringe, S, isFreq, tau, G):
+    # return # of deleted in MIFS
+    count = 0
+    if isFreq:
+        if not exist(S,fringe.MFS):
+            fringe.MFS.append(S)
+
+        for i in fringe.MIFS:
+            if same(i,S):
+                fringe.MIFS.remove(i)
+                count += 1
+                break
+        for i in range(len(fringe.MFS)):
+            MFSi = fringe.MFS[i]
+            if len(MFSi) == len(S) and not same(MFSi,S):
+                u = union(MFSi,S,G)
+                if not exist(u,fringe.MIFS):
+                    embeds = SEARCHLIMITED(S, newgraph,G)
+                    if not embeds:
+                        isFreq = EVALUATE(G,tau,S)
+                    else:
+                        FELSUpdate(embeds, S, tau)
+                        isFreq = MNI(S, tau)
+                    if not isFreq:
+                        fringe.MIFS.append(u)
+    return count
+
 fels_dict = FELS_dict()
 
 def incGM_plus(G, fringe, tau, newedge):
@@ -215,7 +248,7 @@ def incGM_plus(G, fringe, tau, newedge):
         else:
             FELSUpdate(embeds, S, tau)
             isFreq = MNI(S, tau)
-        delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
+        delete = UPDATEFRINGE_plus(fringe, S, isFreq, tau, G)
         i = i + 1 - delete
     return fringe.MFS
 
