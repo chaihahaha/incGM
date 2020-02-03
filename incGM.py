@@ -132,13 +132,13 @@ def EVALUATE(G, tau, S):
     if S in fels_dict.elem.keys():
         valid_nodes = fels_dict.elem[S].inverted_index.keys()
         sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
+    if S not in fels_dict.elem.keys():
+        fels_dict.add(S, FELS(S))
     count_iso = 0
     for i in range(len(sgs)):
         gm = isomorphism.GraphMatcher(S, sgs[i])
         is_iso = gm.is_isomorphic()
         if is_iso:
-            if S not in fels_dict.elem.keys():
-                fels_dict.add(S, FELS(S))
             fels_dict.elem[S].add(sgs[i])
         if MNI(S, tau):
             return True
