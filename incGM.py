@@ -77,12 +77,12 @@ class FELS_dict:
     def add(self,S1,S2):
         exists1 = False
         exists2 = False
-        for j in fels_dict.elements.keys():
+        for j in fels_dict.keys():
             if same(j,S1):
-                fels_dict.elements[j].add(S2)
+                fels_dict.elem(j).add(S2)
                 exists1 = True
             if same(j,S2):
-                fels_dict.elements[j].add(S1)
+                fels_dict.elem(j).add(S1)
                 exists2 = True
         if not exists1:
             fels1 = FELS(S1)
@@ -90,11 +90,15 @@ class FELS_dict:
         if not exists2:
             fels2 = FELS(S2)
             self.elements[S2] = fels2
+    def keys(self):
+        return self.elements.keys()
     def elem(self, S):
         for i in self.elements.keys():
             if same(i,S):
                 return self.elements[i]
-        raise Exception("S:", str(S.edges), "not in", str([i.edges for i in self.elements.keys()]))
+        self.add(S,S)
+        return self.elements[S]
+
     def is_frequent(self, S, tau):
         return self.elem(S).mni.frequent(tau)
 
@@ -105,13 +109,17 @@ def SEARCHLIMITED(S,newgraph,G):
     seed = [newgraph]
     for i in range(n_e-1):
         seed = neighbor_graph(seed,G)
+    embdesS = fels_dict.elem(S).embeddings
     embeddings = []
     for i in seed:
         if len(i)==n_v:
-            gm = isomorphism.GraphMatcher(i, S)
-            is_iso = gm.is_isomorphic()
-            if is_iso:
+            if i in embdesS:
                 embeddings.append(i)
+            else:
+                gm = isomorphism.GraphMatcher(i, S)
+                is_iso = gm.is_isomorphic()
+                if is_iso:
+                    embeddings.append(i)
     return embeddings
 
 def has_nodes(g, s):
@@ -121,7 +129,7 @@ def has_nodes(g, s):
     return False
 
 def FELSUpdate(embeds, S,tau):
-    if S in fels_dict.elements.keys():
+    if S in fels_dict.keys():
         valid_nodes = fels_dict.elem(S).inverted_index.keys()
         embeds.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
     for embedding in embeds:
@@ -145,20 +153,22 @@ def EVALUATE(G, tau, S):
             n_e_subgraph = G.edge_subgraph(j)
             if nx.is_connected(n_e_subgraph):
                 sgs.append(n_e_subgraph)
-    if S in fels_dict.elements.keys():
+    if S in fels_dict.keys():
         valid_nodes = fels_dict.elem(S).inverted_index.keys()
         sgs.sort(key=lambda i: has_nodes(i,valid_nodes), reverse=True)
     sgs_nodes = [i.nodes for i in sgs]
-    if S not in fels_dict.elements.keys():
-        fels_dict.add(S, S)
+#     if S not in fels_dict.keys():
+#         fels_dict.add(S, S)
     count_iso = 0
+    embedsS = fels_dict.elem(S).embeddings
     for i in range(len(sgs)):
-        gm = isomorphism.GraphMatcher(S, sgs[i])
-        is_iso = gm.is_isomorphic()
-        if is_iso:
-            fels_dict.add(S,sgs[i])
+        if sgs[i] not in embedsS:
+            gm = isomorphism.GraphMatcher(S, sgs[i])
+            is_iso = gm.is_isomorphic()
+            if is_iso:
+                fels_dict.add(S,sgs[i])
         if fels_dict.is_frequent(S, tau):
-            return True
+                return True
     return False
 
 def exist(u, arr):
