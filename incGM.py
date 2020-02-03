@@ -219,4 +219,4 @@ edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
 
 for e in edges:
     print()
-    print("MFS",[list(i.edges) for i in incGM(G,fringe, tau, e)])
+    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, e)])
