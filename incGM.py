@@ -58,7 +58,6 @@ class FELS:
         self.S = S
         self.mni = MNI_table(self.S)
         self.inverted_index = dict()
-        self.invalid = set()
     def add(self, embedding):
         exists = False
         for i in embedding.nodes:
@@ -128,10 +127,10 @@ def EVALUATE(G, tau, S):
             n_e_subgraph = G.edge_subgraph(j)
             if nx.is_connected(n_e_subgraph):
                 sgs.append(n_e_subgraph)
-    sgs_nodes = [i.nodes for i in sgs]
     if S in fels_dict.elem.keys():
         valid_nodes = fels_dict.elem[S].inverted_index.keys()
         sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
+    sgs_nodes = [i.nodes for i in sgs]
     if S not in fels_dict.elem.keys():
         fels_dict.add(S, FELS(S))
     count_iso = 0
@@ -208,8 +207,6 @@ def incGM_plus(G, fringe, tau, newedge):
         fringe.MIFS.append(newgraph)
         
     G.add_edge(*e)
-    for i in fels_dict.elem.keys():
-        fels_dict.elem[i].invalid |= set(newedge)
     i = 0
     while 0 <= i <len(fringe.MIFS):
         S = fringe.MIFS[i]
