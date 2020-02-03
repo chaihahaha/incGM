@@ -25,7 +25,7 @@ def same(g1,g2):
     return (g1.nodes == g2.nodes) and (g1.edges == g2.edges)
 
 def union(g1,g2,G):
-    u_edges = set(g1.edges) + set(g2.edges)
+    u_edges = set(g1.edges) | set(g2.edges)
     return G.edge_subgraph(u_edges)
 
 class FRINGE:
