@@ -137,8 +137,12 @@ def EVALUATE(G, tau, S):
         gm = isomorphism.GraphMatcher(S, sgs[i])
         is_iso = gm.is_isomorphic()
         if is_iso:
+            if S not in fels_dict.elem.keys():
+                fels_dict.add(S, FELS(S))
             fels_dict.elem[S].add(sgs[i])
-    return MNI(S,tau)
+        if MNI(S, tau):
+            return True
+    return False
 
 def exist(u, arr):
     for j in arr:
