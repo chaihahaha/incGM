@@ -1,6 +1,6 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
-from itertools import permutations, combinations
+from itertools import combinations
 from functools import reduce
 import operator
 
@@ -68,20 +68,35 @@ class FELS:
                     self.inverted_index[i].append(embedding)
                 else:
                     self.inverted_index[i] = [embedding]
-            for i in self.S.nodes:
-                for j in self.inverted_index.keys():
-                    if j in self.mni.table[i].keys():
-                        self.mni.table[i][j] += 1
-                    else:
-                        self.mni.table[i][j] = 1
-                self.mni.supp[i] = len(self.mni.table[i].values())
+            self.mni.add(dict(zip(list(self.S.nodes), list(embedding.nodes))))
             
             
 class FELS_dict:
     def __init__(self):
-        self.elem = dict()
-    def add(self,S, fels):
-        self.elem[S] = fels
+        self.elements = dict()
+    def add(self,S1,S2):
+        exists1 = False
+        exists2 = False
+        for j in fels_dict.elements.keys():
+            if same(j,S1):
+                fels_dict.elements[j].add(S2)
+                exists1 = True
+            if same(j,S2):
+                fels_dict.elements[j].add(S1)
+                exists2 = True
+        if not exists1:
+            fels1 = FELS(S1)
+            self.elements[S1] = fels1
+        if not exists2:
+            fels2 = FELS(S2)
+            self.elements[S2] = fels2
+    def elem(self, S):
+        for i in self.elements.keys():
+            if same(i,S):
+                return self.elements[i]
+        raise Exception("S:", str(S.edges), "not in", str([i.edges for i in self.elements.keys()]))
+    def is_frequent(self, S, tau):
+        return self.elem(S).mni.frequent(tau)
 
 def SEARCHLIMITED(S,newgraph,G):
     n_v = len(S)
@@ -106,14 +121,12 @@ def has_nodes(g, s):
     return False
 
 def FELSUpdate(embeds, S,tau):
-    if S in fels_dict.elem.keys():
-        valid_nodes = fels_dict.elem[S].inverted_index.keys()
+    if S in fels_dict.elements.keys():
+        valid_nodes = fels_dict.elem(S).inverted_index.keys()
         embeds.sort(key=lambda i: has_nodes(i,valid_nodes))
     for embedding in embeds:
-        if S not in fels_dict.elem.keys():
-            fels_dict.add(S, FELS(S))
-        fels_dict.elem[S].add(embedding)
-        if MNI(S,tau):
+        fels_dict.add(S,embedding)
+        if fels_dict.is_frequent(S, tau):
             break
         
         
@@ -132,19 +145,19 @@ def EVALUATE(G, tau, S):
             n_e_subgraph = G.edge_subgraph(j)
             if nx.is_connected(n_e_subgraph):
                 sgs.append(n_e_subgraph)
-    if S in fels_dict.elem.keys():
-        valid_nodes = fels_dict.elem[S].inverted_index.keys()
+    if S in fels_dict.elements.keys():
+        valid_nodes = fels_dict.elem(S).inverted_index.keys()
         sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
     sgs_nodes = [i.nodes for i in sgs]
-    if S not in fels_dict.elem.keys():
-        fels_dict.add(S, FELS(S))
+    if S not in fels_dict.elements.keys():
+        fels_dict.add(S, S)
     count_iso = 0
     for i in range(len(sgs)):
         gm = isomorphism.GraphMatcher(S, sgs[i])
         is_iso = gm.is_isomorphic()
         if is_iso:
-            fels_dict.elem[S].add(sgs[i])
-        if MNI(S, tau):
+            fels_dict.add(S,sgs[i])
+        if fels_dict.is_frequent(S, tau):
             return True
     return False
 
@@ -153,10 +166,6 @@ def exist(u, arr):
         if same(j,u):
             return True
     return False
-
-def PRUNE(fringe, S):
-    fringe.MFS = [i for i in fringe.MFS if not subset(i,S)]
-    return
 
 def UPDATEFRINGE(fringe, S, isFreq, tau, G):
     # return # of deleted in MIFS
@@ -179,31 +188,6 @@ def UPDATEFRINGE(fringe, S, isFreq, tau, G):
                         fringe.MIFS.append(u)
     return count
 
-def subset(g1,g2):
-    # return if g1 <= g2
-    for i in g1.nodes:
-        if not g2.has_node(i):
-            return False
-    return True
-
-def incGM(G, fringe, tau, newedge):
-    newgraph = nx.Graph()
-    newgraph.add_edge(*newedge)
-    if not G.has_edge(*newedge):
-        fringe.MIFS.append(newgraph)
-
-    G.add_edge(*newedge)
-    i = 0
-    while 0 <= i <len(fringe.MIFS):
-        S = fringe.MIFS[i]
-        isFreq = EVALUATE(G,tau,S)
-        delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
-        i = i + 1 - delete
-    return fringe.MFS
-
-def MNI(S, tau):
-    return fels_dict.elem[S].mni.frequent(tau)
-
 fels_dict = FELS_dict()
 
 def incGM_plus(G, fringe, tau, newedge):
@@ -211,7 +195,6 @@ def incGM_plus(G, fringe, tau, newedge):
     newgraph.add_edge(*newedge)
     if not G.has_edge(*newedge):
         fringe.MIFS.append(newgraph)
-        
         
     G.add_edge(*newedge)
     i = 0
@@ -222,7 +205,7 @@ def incGM_plus(G, fringe, tau, newedge):
             isFreq = EVALUATE(G,tau,S)
         else:
             FELSUpdate(embeds, S, tau)
-            isFreq = MNI(S, tau)
+            isFreq = fels_dict.is_frequent(S, tau)
         delete = UPDATEFRINGE(fringe, S, isFreq, tau, G)
         i = i + 1 - delete
     return fringe.MFS
