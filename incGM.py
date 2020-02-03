@@ -113,10 +113,10 @@ def FELSUpdate(embeds, S,tau):
             break
         
         
-def EVALUATE(G, tau, pattern):
-    n_v = len(pattern)
-    n_e = pattern.size()
-    pattern_nodes = list(pattern.nodes)
+def EVALUATE(G, tau, S):
+    n_v = len(S)
+    n_e = S.size()
+    S_nodes = list(S.nodes)
     sgs_nodes = []
     components = nx.connected_components(G)
     for i in components:
@@ -129,16 +129,19 @@ def EVALUATE(G, tau, pattern):
             if nx.is_connected(n_e_subgraph):
                 sgs.append(n_e_subgraph)
     sgs_nodes = [i.nodes for i in sgs]
-    mni = MNI(pattern)
+    if S in fels_dict.elem.keys():
+        valid_nodes = fels_dict.elem[S].inverted_index.keys()
+        sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
+    mni = MNI(S)
     count_iso = 0
     for i in range(len(sgs)):
-        gm = isomorphism.GraphMatcher(pattern, sgs[i])
+        gm = isomorphism.GraphMatcher(S, sgs[i])
         is_iso = gm.is_isomorphic()
         if is_iso:
-            embedding = dict(zip(pattern_nodes,list(sgs_nodes[i])))
+            embedding = dict(zip(S_nodes,list(sgs_nodes[i])))
             mni.add(embedding)
-            fels_dict.elem[pattern].add(sgs[i])
-            fels_dict.elem[pattern].mni = mni
+            fels_dict.elem[S].add(sgs[i])
+            fels_dict.elem[S].mni = mni
     return mni.support()>=tau
 
 def exist(u, arr):
