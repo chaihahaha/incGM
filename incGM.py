@@ -132,17 +132,13 @@ def EVALUATE(G, tau, S):
     if S in fels_dict.elem.keys():
         valid_nodes = fels_dict.elem[S].inverted_index.keys()
         sgs.sort(key=lambda i: has_nodes(i,valid_nodes))
-    mni = MNI(S,tau)
     count_iso = 0
     for i in range(len(sgs)):
         gm = isomorphism.GraphMatcher(S, sgs[i])
         is_iso = gm.is_isomorphic()
         if is_iso:
-            embedding = dict(zip(S_nodes,list(sgs_nodes[i])))
-            mni.add(embedding)
             fels_dict.elem[S].add(sgs[i])
-            fels_dict.elem[S].mni = mni
-    return mni.support()>=tau
+    return MNI(S,tau)
 
 def exist(u, arr):
     for j in arr:
