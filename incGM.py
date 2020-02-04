@@ -161,10 +161,12 @@ with open("citeseerInt.cites","r") as f:
 edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
 
 count = 0
-for e in edges:
+batchsize = 10
+for i in range(len(edges)//batchsize):
     print()
     tik = time.time()
-    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, e)])
+    newgraph = nx.Graph(edges[i:i+batchsize])
+    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, newgraph)])
     tok = time.time()
     count += tok-tik
     print(tok-tik, count/G.size())
