@@ -134,6 +134,30 @@ def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
                     print("EVALUATE by join!end")
     return deleted
 
+fels_dict = FELS_dict()
+
+def incGM_plus(G, fringe, tau, newgraph):
+    G.add_edges_from(newgraph.edges)
+    newnodes = frozenset(newgraph.nodes)
+    fringe.MIFS.append(newnodes)
+    i = 0
+    while 0 <= i <len(fringe.MIFS):
+        
+        S_nodes = fringe.MIFS[i]
+        print("SEARCH")
+        embeds = SEARCHLIMITED(S_nodes, newnodes,G)
+        print("SEARCHend")
+        if not embeds:
+            print("EVALUATE!")
+            isFreq = EVALUATE(G,tau,S_nodes)
+            print("EVALUATE!end")
+        else:
+            FELSUpdate(embeds, S_nodes, tau)
+            isFreq = fels_dict.is_frequent(S_nodes, tau)
+        delete = UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G)
+        i = i + 1 - int(delete)
+    return fringe.MFS
+
 G = nx.Graph()
 fringe = FRINGE()
 tau=200
