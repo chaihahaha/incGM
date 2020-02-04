@@ -32,7 +32,7 @@ class FRINGE:
             self.MIFS.remove(mifs)
             return True
         return False
-
+        
 class MNI_table:
     def __init__(self,S_nodes):
         self.nodes = S_nodes
@@ -61,12 +61,12 @@ class FELS:
         self.embeddings = []
     def add(self, embedding):
         self.mni.add(embedding)
-
-
+            
+            
 class FELS_dict:
     def __init__(self):
         self.elements = dict()
-
+        
     def add(self,G2S_embedding):
         # index only by node is enough
         S2G_embedding = {v: k for k, v in G2S_embedding.items()}
@@ -78,11 +78,11 @@ class FELS_dict:
             self.elements[subG] = FELS(subG)
         self.elem(S_nodes).add(S2G_embedding)
         self.elem(subG).add(G2S_embedding)
-        return
-
+        return 
+    
     def keys(self):
         return self.elements.keys()
-
+    
     def elem(self, S_nodes):
         return self.elements[S_nodes]
 
@@ -105,8 +105,8 @@ def FELSUpdate(embeds, S_nodes,tau):
         fels_dict.add(embedding)
         if fels_dict.is_frequent(S_nodes, tau):
             break
-
-
+        
+        
 def EVALUATE(G, tau, S_nodes):
     isFreq = False
     gm = isomorphism.GraphMatcher(G,G.subgraph(S_nodes))
@@ -128,32 +128,11 @@ def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
             if len(MFSi) == len(S_nodes) and MFSi != S_nodes:
                 u = MFSi | S_nodes
                 if u not in fringe.MIFS:
+                    print("EVALUATE by join!")
                     if not EVALUATE(G,tau,u):
-                        print("EVALUATE by join!")
                         joined = fringe.addMIFS(u)
+                    print("EVALUATE by join!end")
     return deleted
-
-fels_dict = FELS_dict()
-
-def incGM_plus(G, fringe, tau, newgraph):
-    G.add_edges_from(newgraph.edges)
-    newnodes = frozenset(newgraph.nodes)
-    fringe.MIFS.append(newnodes)
-    i = 0
-    while 0 <= i <len(fringe.MIFS):
-
-        S_nodes = fringe.MIFS[i]
-        print("SEARCH")
-        embeds = SEARCHLIMITED(S_nodes, newnodes,G)
-        if not embeds:
-            print("EVALUATE!")
-            isFreq = EVALUATE(G,tau,S_nodes)
-        else:
-            FELSUpdate(embeds, S_nodes, tau)
-            isFreq = fels_dict.is_frequent(S_nodes, tau)
-        delete = UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G)
-        i = i + 1 - int(delete)
-    return fringe.MFS
 
 G = nx.Graph()
 fringe = FRINGE()
