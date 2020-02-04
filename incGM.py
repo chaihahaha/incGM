@@ -1,13 +1,10 @@
 import networkx as nx
 from networkx.algorithms import isomorphism
-from itertools import combinations
-from functools import reduce
-import operator
 import time
 
 def neighbor(a,G):
     # neighbor of a in G
-    return reduce(operator.add,[[(i,j) for j in G.neighbors(i) if j not in a.nodes] for i in a.nodes],[])
+    return G.edges(a.nodes)
 
 def neighbor_graph(arr,G):
     sgss = []
@@ -22,12 +19,18 @@ def neighbor_graph(arr,G):
         sgss += sgs
     return sgss
 
+def neighbor_graphs(a, G, n):
+    seed = [a]
+    for i in range(n):
+        seed = neighbor_graph(seed,G)
+    return [G.subgraph(i.nodes) for i in seed]
+
 def same(g1,g2):
     return (g1.nodes == g2.nodes) and (g1.edges == g2.edges)
 
 def union(g1,g2,G):
-    u_edges = set(g1.edges) | set(g2.edges)
-    return G.edge_subgraph(u_edges)
+    u_nodes = set(g1.nodes) | set(g2.nodes)
+    return G.subgraph(u_nodes)
 
 class FRINGE:
     def __init__(self):
@@ -60,125 +63,56 @@ class FELS:
         self.mni = MNI_table(self.S)
         self.inverted_index = dict()
         self.embeddings = []
-        self.blacklist = dict()
     def add(self, embedding):
-        exists = exist(embedding, self.embeddings)
-        if not exists:
-            self.embeddings.append(embedding)
-            for i in embedding.nodes:
-                if i in self.inverted_index.keys():
-                    self.inverted_index[i].append(embedding)
-                else:
-                    self.inverted_index[i] = [embedding]
-            self.mni.add(dict(zip(list(self.S.nodes), list(embedding.nodes))))
+        self.mni.add({v: k for k, v in embedding.items()})
             
             
 class FELS_dict:
     def __init__(self):
         self.elements = dict()
-    def add(self,S1,S2):
-        exists1 = False
-        exists2 = False
+    def add(self,S,embedding):
+        exists = False
         for j in fels_dict.keys():
-            if same(j,S1):
-                fels_dict.elem(j).add(S2)
-                exists1 = True
-            if same(j,S2):
-                fels_dict.elem(j).add(S1)
-                exists2 = True
-        if not exists1:
-            fels1 = FELS(S1)
-            self.elements[S1] = fels1
-        if not exists2:
-            fels2 = FELS(S2)
-            self.elements[S2] = fels2
+            if same(j,S):
+                exists = True
+        if not exists:
+            self.elements[S] = FELS(S)
+        self.elem(S).add(embedding)
     def keys(self):
         return self.elements.keys()
     def elem(self, S):
         for i in self.elements.keys():
             if same(i,S):
                 return self.elements[i]
-        self.add(S,S)
         return self.elements[S]
 
     def is_frequent(self, S, tau):
         return self.elem(S).mni.frequent(tau)
-    def blacklist(self, S, g):
-        self.add(S,S)
-        bl = self.elem(S).blacklist
-        for i in g.nodes:
-            if i in bl.keys():
-                bl[i] += 1
-            else:
-                bl[i] = 1
-    def invalid_nodes(self, S, n):
-        nodes = list(self.elem(S).blacklist.keys())
-        nodes.sort(key=self.elem(S).blacklist.get)
-        return nodes[:n]
+
 
 def SEARCHLIMITED(S,newgraph,G):
     n_v = len(S)
     n_e = S.size()
-    neighbor_graphs = []
-    seed = [newgraph]
-    for i in range(n_e-1):
-        seed = neighbor_graph(seed,G)
-    embdesS = fels_dict.elem(S).embeddings
+    search_region = neighbor_graphs(newgraph,G, n_v - 2)
     embeddings = []
-    for i in seed:
-        if len(i)==n_v:
-            if i in embdesS:
-                embeddings.append(i)
-            else:
-                gm = isomorphism.GraphMatcher(i, S)
-                is_iso = gm.is_isomorphic()
-                if is_iso:
-                    embeddings.append(i)
+    for graph in search_region:
+        gm = isomorphism.GraphMatcher(graph, S)
+        for i in gm.subgraph_isomorphisms_iter():
+            embeddings.append(i)
     return embeddings
 
-def has_nodes(g, s):
-    for i in s:
-        if g.has_node(i):
-            return True
-    return False
 
 def FELSUpdate(embeds, S,tau):
     for embedding in embeds:
-        fels_dict.add(S,embedding)
+        fels_dict.add(S, embedding)
         if fels_dict.is_frequent(S, tau):
             break
         
         
 def EVALUATE(G, tau, S):
-    n_v = len(S)
-    n_e = S.size()
-    S_nodes = list(S.nodes)
-    sgs_nodes = []
-    components = nx.connected_components(G)
-    for i in components:
-        sgs_nodes += list(combinations(list(i),n_v))
-    sgs = []
-    for i in sgs_nodes:
-        n_v_subsets = list(combinations(G.subgraph(i).edges,n_e))
-        for j in n_v_subsets:
-            n_e_subgraph = G.edge_subgraph(j)
-            if nx.is_connected(n_e_subgraph):
-                sgs.append(n_e_subgraph)
-    invalid_nodes = fels_dict.invalid_nodes(S,100)
-    sgs.sort(key=lambda i: has_nodes(i, invalid_nodes))
-    sgs_nodes = [i.nodes for i in sgs]
-    count_iso = 0
-    embedsS = fels_dict.elem(S).embeddings
-    for i in range(len(sgs)):
-        if sgs[i] not in embedsS:
-            gm = isomorphism.GraphMatcher(S, sgs[i])
-            is_iso = gm.is_isomorphic()
-            if is_iso:
-                fels_dict.add(S,sgs[i])
-            else:
-                fels_dict.blacklist(S, sgs[i])
-        elif fels_dict.is_frequent(sgs[i]):
-            return True
+    gm = isomorphism.GraphMatcher(G,S)
+    for i in gm.subgraph_isomorphisms_iter():
+        fels_dict.add(S, i)
         if fels_dict.is_frequent(S, tau):
             return True
     return False
@@ -205,9 +139,8 @@ def UPDATEFRINGE(fringe, S, isFreq, tau, G):
             MFSi = fringe.MFS[i]
             if len(MFSi) == len(S) and not same(MFSi,S):
                 u = union(MFSi,S,G)
-                if not exist(u,fringe.MIFS) and nx.is_connected(u):
-                    if not EVALUATE(G,tau,u):
-                        fringe.MIFS.append(u)
+                if not EVALUATE(G,tau,u):
+                    fringe.MIFS.append(u)
     return count
 
 fels_dict = FELS_dict()
