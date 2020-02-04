@@ -32,7 +32,7 @@ class FRINGE:
             self.MIFS.remove(mifs)
             return True
         return False
-        
+
 class MNI_table:
     def __init__(self,S_nodes):
         self.nodes = S_nodes
@@ -61,12 +61,12 @@ class FELS:
         self.embeddings = []
     def add(self, embedding):
         self.mni.add(embedding)
-            
-            
+
+
 class FELS_dict:
     def __init__(self):
         self.elements = dict()
-        
+
     def add(self,G2S_embedding):
         # index only by node is enough
         S2G_embedding = {v: k for k, v in G2S_embedding.items()}
@@ -78,11 +78,11 @@ class FELS_dict:
             self.elements[subG] = FELS(subG)
         self.elem(S_nodes).add(S2G_embedding)
         self.elem(subG).add(G2S_embedding)
-        return 
-    
+        return
+
     def keys(self):
         return self.elements.keys()
-    
+
     def elem(self, S_nodes):
         return self.elements[S_nodes]
 
@@ -105,8 +105,8 @@ def FELSUpdate(embeds, S_nodes,tau):
         fels_dict.add(embedding)
         if fels_dict.is_frequent(S_nodes, tau):
             break
-        
-        
+
+
 def EVALUATE(G, tau, S_nodes):
     isFreq = False
     gm = isomorphism.GraphMatcher(G,G.subgraph(S_nodes))
@@ -140,7 +140,7 @@ def incGM_plus(G, fringe, tau, newgraph):
     fringe.MIFS.append(newnodes)
     i = 0
     while 0 <= i <len(fringe.MIFS):
-        
+
         S_nodes = fringe.MIFS[i]
         embeds = SEARCHLIMITED(S_nodes, newnodes,G)
         if not embeds:
@@ -162,7 +162,16 @@ edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
 
 count = 0
 batchsize = 10
-for i in range(len(edges)//batchsize):
+for i in range(100):
+    print()
+    tik = time.time()
+    newgraph = nx.Graph([edges[i]])
+    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, newgraph)])
+    tok = time.time()
+    count += tok-tik
+    print(tok-tik, count/G.size())
+
+for i in range(100,len(edges)//batchsize):
     print()
     tik = time.time()
     newgraph = nx.Graph(edges[i:i+batchsize])
