@@ -7,12 +7,6 @@ def neighbor(a,G):
     # neighbor of a in G
     return frozenset(G.edge_subgraph(G.edges(a)))
 
-def neighbor_graphn(a, G, n):
-    # a is a node set, G is a graph, n is # of iteration
-    for i in range(n):
-        a = neighbor(a,G)
-    return a
-
 class FRINGE:
     def __init__(self):
         self.MFS = []
@@ -90,9 +84,10 @@ class FELS_dict:
         return self.elem(S_nodes).mni.frequent(tau)
 
 
-def SEARCHLIMITED(S_nodes,newnodes,G):
+def SEARCHLIMITED(S_nodes,search_region,G):
     n_v = len(S_nodes)
-    search_region = neighbor_graphn(newnodes,G, n_v - len(newnodes))
+    while len(search_region) < len(S_nodes):
+        search_region = neighbor(search_region,G)
     embeddings = []
     gm = isomorphism.GraphMatcher(G.subgraph(search_region), G.subgraph(S_nodes))
     for i in gm.subgraph_isomorphisms_iter():
@@ -128,10 +123,8 @@ def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
             if len(MFSi) == len(S_nodes) and MFSi != S_nodes:
                 u = MFSi | S_nodes
                 if u not in fringe.MIFS:
-                    print("EVALUATE by join!")
                     if not EVALUATE(G,tau,u):
                         joined = fringe.addMIFS(u)
-                    print("EVALUATE by join!end")
     return deleted
 
 fels_dict = FELS_dict()
@@ -144,13 +137,9 @@ def incGM_plus(G, fringe, tau, newgraph):
     while 0 <= i <len(fringe.MIFS):
         
         S_nodes = fringe.MIFS[i]
-        print("SEARCH")
         embeds = SEARCHLIMITED(S_nodes, newnodes,G)
-        print("SEARCHend")
         if not embeds:
-            print("EVALUATE!")
             isFreq = EVALUATE(G,tau,S_nodes)
-            print("EVALUATE!end")
         else:
             FELSUpdate(embeds, S_nodes, tau)
             isFreq = fels_dict.is_frequent(S_nodes, tau)
