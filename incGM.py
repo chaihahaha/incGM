@@ -89,7 +89,9 @@ class FELS_dict:
     def elem(self, S_nodes):
         return self.elements[S_nodes]
 
-    def is_frequent(self, S_nodes, tau):
+    def is_frequent(self, S_nodes, tau,G):
+        if not nx.is_connected(G.subgraph(S_nodes)):
+            return False
         return self.elem(S_nodes).mni.frequent(tau)
 
     def iso_graphs(self, S_nodes):
@@ -102,36 +104,33 @@ class FELS_dict:
 
 
 def SEARCHLIMITED(S_nodes,search_region,G):
-    n_v = len(S_nodes)
-
+    embeddings = False
+    if not nx.is_connected(G.subgraph(S_nodes)):
+        return False
     while len(search_region) < len(S_nodes):
         old_region = search_region
         search_region = neighbor(search_region,G)
         if old_region == search_region:
             break
-    embeddings = []
     gm = isomorphism.GraphMatcher(G.subgraph(search_region), G.subgraph(S_nodes))
     for i in gm.subgraph_isomorphisms_iter():
-        embeddings.append(i)
+        embeddings = True
+        fels_dict.add(i)
+        if fels_dict.is_frequent(S_nodes, tau,G):
+            break
     return embeddings
 
-
-def FELSUpdate(embeds, S_nodes,tau):
-    for embedding in embeds:
-        fels_dict.add(embedding)
-        if fels_dict.is_frequent(S_nodes, tau):
-            break
-
-
 def EVALUATE(G, tau, S_nodes):
-    isFreq = False
-    gm = isomorphism.GraphMatcher(G,G.subgraph(S_nodes))
-    for i in gm.subgraph_isomorphisms_iter():
-        fels_dict.add(i)
-        if fels_dict.is_frequent(S_nodes, tau):
-            isFreq = True
-            break
-    return isFreq
+    if not nx.is_connected(G.subgraph(S_nodes)):
+        return False
+    components = nx.connected_components(G)
+    for cnodes in components:
+        gm = isomorphism.GraphMatcher(G.subgraph(cnodes),G.subgraph(S_nodes))
+        for i in gm.subgraph_isomorphisms_iter():
+            fels_dict.add(i)
+            if fels_dict.is_frequent(S_nodes, tau, G):
+                return True
+    return False
 
 def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
     deleted = False
@@ -161,8 +160,7 @@ def incGM_plus(G, fringe, tau, newgraph):
         if not embeds:
             isFreq = EVALUATE(G,tau,S_nodes)
         else:
-            FELSUpdate(embeds, S_nodes, tau)
-            isFreq = fels_dict.is_frequent(S_nodes, tau)
+            isFreq = fels_dict.is_frequent(S_nodes, tau, G)
         delete = UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G)
         i = i + 1 - int(delete)
     return fringe.MFS
@@ -173,19 +171,14 @@ nx.draw(base,pos=pos)
 plt.savefig("base.png")
 plt.clf()
 G = nx.Graph()
-tau = 5
+tau = 7
 fringe = FRINGE()
 for e in base.edges:
-    print(e)
+    tik = time.time()
     incGM_plus(G,fringe,tau,base.subgraph(e))
+    tok = time.time()
+    print(tok-tik)
 distinct = [i for i in fringe.MFS]
-#for i in range(len(distinct)-1):
-#    j = i+1
-#    while 0<=j<len(distinct):
-#        if distinct[j] in fels_dict.iso_graphs(distinct[i]):
-#            distinct.pop(j)
-#            j -= 1
-#        j += 1
 
 for i in range(len(distinct)-1):
     j = i+1
