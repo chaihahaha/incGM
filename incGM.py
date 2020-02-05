@@ -53,13 +53,15 @@ class FELS:
         self.S_nodes = S_nodes
         self.mni = MNI_table(self.S_nodes)
         self.embeddings = []
-        self.inverted_index = dict()
+        self.inverted_index = dict() # dict of set of node sets(subgraph)
     def add(self, embedding):
         self.mni.add(embedding)
     def add_inverted(self, embedding):
         emb_nodes = frozenset(embedding.keys())
         for i in embedding.keys():
-            self.inverted_index[i] = emb_nodes
+            if i not in self.inverted_index.keys():
+                self.inverted_index[i] = set()
+            self.inverted_index[i].add(emb_nodes)
 
 
 class FELS_dict:
@@ -94,7 +96,8 @@ class FELS_dict:
         gs = set()
         inv = self.elem(S_nodes).inverted_index
         for i in inv.keys():
-            gs.add(inv[i])
+            for j in inv[i]:
+                gs.add(j)
         return gs
 
 
@@ -176,13 +179,13 @@ for e in base.edges:
     print(e)
     incGM_plus(G,fringe,tau,base.subgraph(e))
 distinct = [i for i in fringe.MFS]
-for i in range(len(distinct)-1):
-    j = i+1
-    while 0<=j<len(distinct):
-        if distinct[j] in fels_dict.iso_graphs(distinct[i]):
-            distinct.pop(j)
-            j -= 1
-        j += 1
+#for i in range(len(distinct)-1):
+#    j = i+1
+#    while 0<=j<len(distinct):
+#        if distinct[j] in fels_dict.iso_graphs(distinct[i]):
+#            distinct.pop(j)
+#            j -= 1
+#        j += 1
 
 for i in range(len(distinct)-1):
     j = i+1
@@ -192,7 +195,6 @@ for i in range(len(distinct)-1):
             distinct.pop(j)
             j -= 1
         j += 1
-print(distinct)
 for i in distinct:
     nx.draw(G.subgraph(i),pos=pos)
     plt.savefig(str(i) + ".png")
