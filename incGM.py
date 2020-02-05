@@ -53,8 +53,13 @@ class FELS:
         self.S_nodes = S_nodes
         self.mni = MNI_table(self.S_nodes)
         self.embeddings = []
+        self.inverted_index = dict()
     def add(self, embedding):
         self.mni.add(embedding)
+    def add_inverted(self, embedding):
+        emb_nodes = frozenset(embedding.keys())
+        for i in embedding.keys():
+            self.inverted_index[i] = emb_nodes
 
 
 class FELS_dict:
@@ -71,7 +76,9 @@ class FELS_dict:
         if subG not in fels_dict.keys():
             self.elements[subG] = FELS(subG)
         self.elem(S_nodes).add(S2G_embedding)
+        self.elem(S_nodes).add_inverted(G2S_embedding)
         self.elem(subG).add(G2S_embedding)
+        self.elem(subG).add_inverted(S2G_embedding)
         return
 
     def keys(self):
@@ -82,6 +89,13 @@ class FELS_dict:
 
     def is_frequent(self, S_nodes, tau):
         return self.elem(S_nodes).mni.frequent(tau)
+
+    def iso_graphs(self, S_nodes):
+        gs = set()
+        inv = self.elem(S_nodes).inverted_index
+        for i in inv.keys():
+            gs.add(inv[i])
+        return gs
 
 
 def SEARCHLIMITED(S_nodes,search_region,G):
@@ -150,29 +164,36 @@ def incGM_plus(G, fringe, tau, newgraph):
         i = i + 1 - int(delete)
     return fringe.MFS
 
+base = nx.gnm_random_graph(15,25,1)
+pos = nx.spring_layout(base)
+nx.draw(base,pos=pos)
+plt.savefig("base.png")
+plt.clf()
 G = nx.Graph()
+tau = 5
 fringe = FRINGE()
-tau=200
-with open("citeseerInt.cites","r") as f:
-    txt = f.read()
-edges = [[int(i) for i in j.split(",")] for j in txt.split("\n") if j]
+for e in base.edges:
+    print(e)
+    incGM_plus(G,fringe,tau,base.subgraph(e))
+distinct = [i for i in fringe.MFS]
+for i in range(len(distinct)-1):
+    j = i+1
+    while 0<=j<len(distinct):
+        if distinct[j] in fels_dict.iso_graphs(distinct[i]):
+            distinct.pop(j)
+            j -= 1
+        j += 1
 
-count = 0
-batchsize = 10
-for i in range(100):
-    print()
-    tik = time.time()
-    newgraph = nx.Graph([edges[i]])
-    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, newgraph)])
-    tok = time.time()
-    count += tok-tik
-    print(tok-tik, count/G.size())
-
-for i in range(100,len(edges)//batchsize):
-    print()
-    tik = time.time()
-    newgraph = nx.Graph(edges[i:i+batchsize])
-    print("MFS",[list(i.edges) for i in incGM_plus(G,fringe, tau, newgraph)])
-    tok = time.time()
-    count += tok-tik
-    print(tok-tik, count/G.size())
+for i in range(len(distinct)-1):
+    j = i+1
+    while 0<=j<len(distinct):
+        gi,gj = (G.subgraph(distinct[i]), G.subgraph(distinct[j]))
+        if nx.is_isomorphic(gi,gj):
+            distinct.pop(j)
+            j -= 1
+        j += 1
+print(distinct)
+for i in distinct:
+    nx.draw(G.subgraph(i),pos=pos)
+    plt.savefig(str(i) + ".png")
+    plt.clf()
