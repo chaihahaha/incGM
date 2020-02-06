@@ -167,7 +167,8 @@ def incGM_plus(G, fringe, tau, newgraph):
 
 base = nx.gnm_random_graph(15,25,1)
 pos = nx.spring_layout(base)
-nx.draw(base,pos=pos)
+nx.draw_networkx_nodes(base,pos=pos,node_color='#000000')
+nx.draw_networkx_edges(base,pos=pos,edge_color='#000000')
 plt.savefig("base.png")
 plt.clf()
 G = nx.Graph()
@@ -189,6 +190,7 @@ for i in range(len(distinct)-1):
             j -= 1
         j += 1
 for i in distinct:
-    nx.draw(G.subgraph(i),pos=pos)
+    nx.draw_networkx_nodes(G.subgraph(i),pos=pos,node_color='#000000')
+    nx.draw_networkx_edges(G.subgraph(i),pos=pos,edge_color='#000000')
     plt.savefig(str(i) + ".png")
     plt.clf()
