@@ -28,39 +28,50 @@ class FRINGE:
             return True
         return False
 
-class MNI_table:
-    def __init__(self,S_nodes):
-        self.nodes = S_nodes
-        self.table = dict() # lower bound of solution (marked solutions)
-        self.domain = dict() # upper bound of solution
-        for i in self.nodes:
-            self.table[i]=set()
-    def add(self, dic):
-        for i in self.nodes:
-            self.table[i].add(dic[i])
-    def frequent(self, tau):
-        minsupp = min([len(self.table[i]) for i in self.nodes])
-        return minsupp>=tau
-    def infrequent(self, tau):
-        maxsupp = min([len(self.domain[i]) for i in self.nodes])
-        return maxsupp<tau
-
 
 class FELS:
     def __init__(self,S_nodes):
-        self.S_nodes = S_nodes
-        self.mni = MNI_table(self.S_nodes)
-        self.embeddings = set()
         self.inverted_index = dict() # dict of set of node sets(subgraph)
-    def add(self, embedding):
-        self.embeddings.add(frozenset(embedding.values()))
-        self.mni.add(embedding)
-    def add_inverted(self, embedding):
-        emb_nodes = frozenset(embedding.keys())
-        for i in embedding.keys():
+        self.nodes = tuple(S_nodes)
+        self.domain = dict() # upper bound of solution
+        self.embeddings = set() # set of tuples
+
+    def add(self, dic):
+        emb_nodes =tuple(dic[i] for i in self.nodes)
+        self.embeddings.add(emb_nodes)
+
+        # add inverted
+        for i in dic.values():
             if i not in self.inverted_index.keys():
                 self.inverted_index[i] = set()
             self.inverted_index[i].add(emb_nodes)
+        return
+
+    def remove(self, v):
+        if v in self.inverted_index.keys():
+            remove_list = list(self.inverted_index[v])
+            for emb_nodes in remove_list:
+                self.embeddings.remove(emb_nodes)
+                for k in self.inverted_index.keys():
+                    self.inverted_index[k] -= {emb_nodes}
+            self.inverted_index.pop(v)
+        return
+
+    def mni(self):
+        table = {i:set() for i in self.nodes} # MNI table lower bound
+        for i in range(len(self.nodes)):
+            for tup in self.embeddings:
+                table[self.nodes[i]].add(tup[i])
+        return table
+
+    def frequent(self, tau):
+        table = self.mni()
+        minsupp = min([len(table[i]) for i in self.nodes])
+        return minsupp>=tau
+
+    def infrequent(self, tau):
+        maxsupp = min([len(self.domain[i]) for i in self.nodes])
+        return maxsupp<tau
 
 
 class FELS_dict:
@@ -77,14 +88,16 @@ class FELS_dict:
         if subG not in fels_dict.keys():
             self.elements[subG] = FELS(subG)
         self.elem(S_nodes).add(S2G_embedding)
-        self.elem(S_nodes).add_inverted(G2S_embedding)
         self.elem(subG).add(G2S_embedding)
-        self.elem(subG).add_inverted(S2G_embedding)
         return
 
     def remove(self, S_nodes, v, u):
         self.domain(S_nodes)[v] -= {u}
         return
+
+    def update_mni(self, v):
+        for i in self.keys():
+            self.elem(i).remove(v)
 
     def keys(self):
         return self.elements.keys()
@@ -93,17 +106,10 @@ class FELS_dict:
         return self.elements[S_nodes]
 
     def mni(self, S_nodes):
-        return self.elements[S_nodes].mni.table
-
-    def clear_mni(self, S_nodes):
-        if S_nodes in self.elements:
-            t = self.elem(S_nodes).mni.table
-            for i in t.keys():
-                t[i] = set()
-        return
+        return self.elements[S_nodes].mni()
 
     def domain(self, S_nodes):
-        return self.elements[S_nodes].mni.domain
+        return self.elements[S_nodes].domain
 
     def intersection(self, S_nodes, ds, G):
         if S_nodes not in self.keys():
@@ -119,12 +125,12 @@ class FELS_dict:
     def is_frequent(self, S_nodes, tau,G):
         if not nx.is_connected(G.subgraph(S_nodes)):
             return False
-        return self.elem(S_nodes).mni.frequent(tau)
+        return self.elem(S_nodes).frequent(tau)
 
     def is_infrequent(self, S_nodes, tau):
         if not nx.is_connected(G.subgraph(S_nodes)):
             return True
-        return self.elem(S_nodes).mni.infrequent(tau)
+        return self.elem(S_nodes).infrequent(tau)
 
     def iso_graphs(self, S_nodes):
         gs = set()
@@ -191,13 +197,19 @@ def exists_embeddings(G, S_nodes, v, u):
 def EVALUATE(G, tau, S_nodes):
     if not nx.is_connected(G.subgraph(S_nodes)):
         return False
-    fels_dict.clear_mni(S_nodes)
     ds = direct_subgraphs(G, S_nodes)
-    fels_dict.intersection(S_nodes, ds, G)
+    fels_dict.intersection(S_nodes, ds, G) # push down prunning
+    # Automorphisms
+    gm = isomorphism.GraphMatcher(G.subgraph(S_nodes), G.subgraph(S_nodes))
+    for automorphism in gm.isomorphisms_iter():
+        fels_dict.add(automorphism)
+
     for v in S_nodes:
         count = 0
         if fels_dict.is_infrequent(S_nodes, tau):
             return False
+
+        # Lazy search ??
         for u in fels_dict.domain(S_nodes)[v]:
             if u in fels_dict.mni(S_nodes)[v]:
                 count += 1
@@ -237,6 +249,8 @@ fels_dict = FELS_dict()
 def incGM_plus(G, fringe, tau, newgraph):
     G.add_edges_from(newgraph.edges)
     newnodes = frozenset(newgraph.nodes)
+    for v in newnodes:
+        fels_dict.update_mni(v)
     fringe.addMIFS(newnodes)
     i = 0
     while 0 <= i <len(fringe.MIFS):
