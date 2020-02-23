@@ -95,6 +95,13 @@ class FELS_dict:
     def mni(self, S_nodes):
         return self.elements[S_nodes].mni.table
 
+    def clear_mni(self, S_nodes):
+        if S_nodes in self.elements:
+            t = self.elem(S_nodes).mni.table
+            for i in t.keys():
+                t[i] = set()
+        return
+
     def domain(self, S_nodes):
         return self.elements[S_nodes].mni.domain
 
@@ -153,14 +160,14 @@ def SEARCHLIMITED(S_nodes,search_region,G):
 
 def candidates(G, S_nodes, v, u):
         # candidate embeddings to be checked which is generated from domains of MNI
-        embeddings = {frozenset({u})}
+        embeddings = [{v:u}]
         for i in (S_nodes-{v}):
-            newembeddings = set()
+            newembeddings = []
             for j in fels_dict.domain(S_nodes)[i]:
                 for k in embeddings:
-                    union = k | {j}
-                    if nx.is_connected(G.subgraph(union)):
-                        newembeddings.add(union)
+                    union = {**k, **{i:j}}
+                    if nx.is_connected(G.subgraph(union.values())):
+                        newembeddings.append(union)
             embeddings = newembeddings
         return embeddings
 
@@ -169,22 +176,22 @@ def exists_embeddings(G, S_nodes, v, u):
     frequent = False
     cand = candidates(G, S_nodes, v, u)
     for c in cand:
-        gm =  isomorphism.GraphMatcher(G.subgraph(S_nodes), G.subgraph(c))
-        for e in gm.isomorphisms_iter():
-            fels_dict.add(e)
-            if e[v] == u:
-                exists = True
-            if fels_dict.is_frequent(S_nodes, tau, G):
-                frequent = True
+        iso = True
+        S_edges = G.subgraph(S_nodes).edges
+        C_edges = G.subgraph(c.values()).edges
+        for e in S_edges:
+            if len(S_edges) != len(C_edges) or (c[e[0]],c[e[1]]) not in C_edges:
+                iso = False
                 break
-        else:
-            continue
-        break
-    return exists, frequent
+        if iso:
+            exists = True
+            fels_dict.add(c)
+    return exists
 
 def EVALUATE(G, tau, S_nodes):
     if not nx.is_connected(G.subgraph(S_nodes)):
         return False
+    fels_dict.clear_mni(S_nodes)
     ds = direct_subgraphs(G, S_nodes)
     fels_dict.intersection(S_nodes, ds, G)
     for v in S_nodes:
@@ -195,9 +202,7 @@ def EVALUATE(G, tau, S_nodes):
             if u in fels_dict.mni(S_nodes)[v]:
                 count += 1
             else:
-                exists, frequent = exists_embeddings(G, S_nodes, v, u)
-                if frequent:
-                    return True
+                exists = exists_embeddings(G, S_nodes, v, u)
                 if exists:
                     count += 1
                 else:
@@ -224,6 +229,7 @@ def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
                 if u not in fringe.MIFS and u not in fringe.MFS:
                     if not EVALUATE(G,tau,u):
                         joined = fringe.addMIFS(u)
+
     return deleted
 
 fels_dict = FELS_dict()
@@ -233,29 +239,15 @@ def incGM_plus(G, fringe, tau, newgraph):
     newnodes = frozenset(newgraph.nodes)
     fringe.addMIFS(newnodes)
     i = 0
-    sl = 0
-    ev = 0
     while 0 <= i <len(fringe.MIFS):
         S_nodes = fringe.MIFS[i]
-        sl_tik = time.time()
         embeds = SEARCHLIMITED(S_nodes, newnodes,G)
-        sl_tok = time.time()
-        sl += sl_tok - sl_tik
-        print("search limited:", sl)
         if not embeds:
-            ev_tik = time.time()
             isFreq = EVALUATE(G,tau,S_nodes)
-            ev_tok = time.time()
-            ev += ev_tok - ev_tik
-            print("evaluate:",ev)
         else:
             isFreq = fels_dict.is_frequent(S_nodes, tau, G)
 
-        ev_tik = time.time()
         delete = UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G)
-        ev_tok = time.time()
-        ev += ev_tok - ev_tik
-        print("evaluate:",ev)
         i = i + 1 - int(delete)
     return fringe.MFS
 
@@ -268,14 +260,14 @@ plt.clf()
 G = nx.Graph()
 tau = 7
 fringe = FRINGE()
+cnt = 0
 for e in base.edges:
+    cnt += 1
+    print(cnt, "adding:",e)
     tik = time.time()
     incGM_plus(G,fringe,tau,base.subgraph(e))
     tok = time.time()
     print("TOTAL:",tok-tik)
-    print("=================")
-    print()
-    print()
 distinct = [i for i in fringe.MFS]
 
 for i in range(len(distinct)-1):
