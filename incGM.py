@@ -217,8 +217,8 @@ def perm(domain, i, dic, L, mni_table, key_list, G):
         filter2 = set() if not coincide2 else set(key_list)
         # cannot have duplicate nodes in one embedding, filter old out
         filter3 = set(map(lambda k:dic[k], set(key_list[:i])))
-        # new node should not be disconneted to old ones
-        filter4 = set(filter(lambda k:not G.subgraph(filter3).edges([k]), domain[v]))
+        # last node should not be disconneted to old ones
+        filter4 = set() if not i == len(domain.keys())-1 else set(filter(lambda k:not nx.is_connected(G.subgraph(filter3|{k})), domain[v]))
         filtered = domain[v] - filter1 - filter2 - filter3 - filter4
         for j in filtered:
             dic[v] = j
@@ -240,6 +240,7 @@ def candidates(G, S_nodes, v, u):
 
     # graph node reordering
     embeddings.sort(key=lambda d: fels_dict.score(S_nodes, d))
+    print(len(embeddings))
     return embeddings
 
 def exists_embeddings(G, S_nodes, v, u):
