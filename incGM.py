@@ -33,7 +33,7 @@ class FELS:
     def __init__(self,S_nodes, G):
         self.inverted_index = dict() # dict of set of node sets(subgraph)
         self.nodes = tuple(S_nodes)
-        self.domain = dict() # upper bound of solution
+        self.domain = {i:frozenset(G) for i in S_nodes} # upper bound of solution
         self.embeddings = set() # set of tuples
         self.G = G
         self.blacklistnodes = {i:0 for i in G.nodes}
@@ -48,6 +48,10 @@ class FELS:
             if i not in self.inverted_index.keys():
                 self.inverted_index[i] = set()
             self.inverted_index[i].add(emb_nodes)
+
+        # add to domain
+        for i in self.nodes:
+            self.domain[i] |= self.mni()[i]
         return
 
     def remove(self, v):
@@ -133,7 +137,7 @@ class FELS_dict:
             inter = frozenset(G)
             for j in ds:
                 if i in j and j in self.keys():
-                    inter &= frozenset(self.mni(j)[i])
+                    inter &= self.domain(j)[i]
             self.domain(S_nodes)[i] = inter
         return
 
@@ -157,12 +161,9 @@ class FELS_dict:
                 gs.add(j)
         return gs
 
-    def score(self, S_nodes, dic):
+    def score(self, S_nodes, v):
         # invalidness of invalid nodes which cannot match with S
-        s = 0
-        for v in dic.values():
-            s += self.elem(S_nodes).blacklistnodes[v]
-        return s
+        return self.elem(S_nodes).blacklistnodes[v]
 
     def invalid_col(self, S_nodes, v):
         # add invalid column of mni
@@ -196,7 +197,7 @@ def SEARCHLIMITED(S_nodes,search_region,G):
             break
     return embeddings
 
-def perm(domain, i, dic, L, mni_table, key_list, G):
+def perm(domain, i, dic, mni_table, key_list, G, key):
     coincide1, coincide2 = False, False
     if i == len(domain.keys()) - 1:
         coincide1 = True
@@ -220,11 +221,13 @@ def perm(domain, i, dic, L, mni_table, key_list, G):
         # last node should not be disconneted to old ones
         filter4 = set() if not i == len(domain.keys())-1 else set(filter(lambda k:not nx.is_connected(G.subgraph(filter3|{k})), domain[v]))
         filtered = domain[v] - filter1 - filter2 - filter3 - filter4
+        # graph node reordering
+        filtered = sorted(list(filtered), key=key, reverse=True)
         for j in filtered:
             dic[v] = j
-            perm(domain, i+1, dic, L, mni_table, key_list, G)
+            yield from perm(domain, i+1, dic, mni_table, key_list, G, key)
     else:
-        L.append(dic.copy())
+        yield dic
 
 def candidates(G, S_nodes, v, u):
     # candidate embeddings to be checked which is generated from domains of MNI
@@ -236,15 +239,10 @@ def candidates(G, S_nodes, v, u):
     embeddings = []
     dic = {i:0  for i in S_nodes}
     key_list = sorted(domain.keys())
-    perm(domain, 0, dic, embeddings, mni_table, key_list, G)
-
-    # graph node reordering
-    embeddings.sort(key=lambda d: fels_dict.score(S_nodes, d))
-    print(len(embeddings))
-    return embeddings
+    return perm(domain, 0, dic, mni_table, key_list, G, lambda d: fels_dict.score(S_nodes, d))
 
 def exists_embeddings(G, S_nodes, v, u):
-    # check candidate isomorphisms in domain with v->u mapping
+    # check whether where exists an isomorphism in domain with v->u mapping
     exists = False
     cand = candidates(G, S_nodes, v, u)
     for c in cand:
@@ -257,8 +255,8 @@ def exists_embeddings(G, S_nodes, v, u):
                 fels_dict.elem(S_nodes).blacklist(c)
                 break
         if iso:
-            exists = True
             fels_dict.add(c, G)
+            return True
     return exists
 
 def EVALUATE(G, tau, S_nodes):
