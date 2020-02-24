@@ -197,15 +197,34 @@ def SEARCHLIMITED(S_nodes,search_region,G):
     return embeddings
 
 def perm(domain, i, dic, L, mni_table, key_list, G):
+    coincide1, coincide2 = False, False
+    if i == len(domain.keys()) - 1:
+        coincide1 = True
+        for k in range(i):
+            v = key_list[k]
+            if dic[v] not in mni_table[v] :
+                coincide1 = False
+        coincide2 = True
+        for k in range(i):
+            v = key_list[k]
+            if dic[v] not in key_list:
+                coincide2 = False
     if i < len(domain.keys()):
-        for j in domain[key_list[i]]:
-            dic[key_list[i]] = j
+        v = key_list[i]
+        # not all mapped nodes in lower bound(added)
+        filter1 = set() if not coincide1 else mni_table[v]
+        # not all mapped nodes in automorphism(added)
+        filter2 = set() if not coincide2 else set(key_list)
+        # cannot have duplicate nodes in one embedding, filter old out
+        filter3 = set(map(lambda k:dic[k], set(key_list[:i])))
+        # new node should not be disconneted to old ones
+        filter4 = set(filter(lambda k:not G.subgraph(filter3).edges([k]), domain[v]))
+        filtered = domain[v] - filter1 - filter2 - filter3 - filter4
+        for j in filtered:
+            dic[v] = j
             perm(domain, i+1, dic, L, mni_table, key_list, G)
     else:
-        for v in domain.keys():
-            if dic[v] in domain[v] - mni_table[v] and len(key_list) == len(set(dic.values())) and nx.is_connected(G.subgraph(dic.values())):
-                L.append(dic.copy())
-                break
+        L.append(dic.copy())
 
 def candidates(G, S_nodes, v, u):
     # candidate embeddings to be checked which is generated from domains of MNI
@@ -221,13 +240,11 @@ def candidates(G, S_nodes, v, u):
 
     # graph node reordering
     embeddings.sort(key=lambda d: fels_dict.score(S_nodes, d))
-    print(len(embeddings))
     return embeddings
 
 def exists_embeddings(G, S_nodes, v, u):
     # check candidate isomorphisms in domain with v->u mapping
     exists = False
-    frequent = False
     cand = candidates(G, S_nodes, v, u)
     for c in cand:
         iso = True
@@ -246,13 +263,14 @@ def exists_embeddings(G, S_nodes, v, u):
 def EVALUATE(G, tau, S_nodes):
     if not nx.is_connected(G.subgraph(S_nodes)):
         return False
-    print("EVALUATING:", S_nodes)
     ds = direct_subgraphs(G, S_nodes)
     fels_dict.intersection(S_nodes, ds, G, tau) # push down prunning
     # Automorphisms
     gm = isomorphism.GraphMatcher(G.subgraph(S_nodes), G.subgraph(S_nodes))
     for automorphism in gm.isomorphisms_iter():
         fels_dict.add(automorphism, G)
+    if fels_dict.is_frequent(S_nodes, tau, G):
+        return True
 
     # MNI col reordering
     s_node_list = list(S_nodes)
@@ -262,6 +280,8 @@ def EVALUATE(G, tau, S_nodes):
         count = 0
         if fels_dict.is_infrequent(S_nodes, tau):
             return False
+        if fels_dict.is_frequent(S_nodes, tau, G):
+            return True
 
         # Lazy search ??
         for u in fels_dict.domain(S_nodes)[v]:
@@ -278,8 +298,6 @@ def EVALUATE(G, tau, S_nodes):
         else:
             fels_dict.invalid_col(S_nodes, v)
             return False
-    if fels_dict.is_frequent(S_nodes, tau, G) == False:
-        print(fels_dict.mni(S_nodes))
     assert fels_dict.is_frequent(S_nodes, tau, G) == True
     return True
 
