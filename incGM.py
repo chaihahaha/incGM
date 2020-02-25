@@ -37,6 +37,7 @@ class FELS:
         self.embeddings = set() # set of tuples
         self.G = G
         self.blacklistnodes = {i:0 for i in G.nodes}
+        self.blacklistedges = {i:0 for i in G.edges}
         self.invalid_col = {i:0 for i in self.nodes}
 
     def add(self, dic):
@@ -83,11 +84,6 @@ class FELS:
     def infrequent(self, tau):
         maxsupp = min([len(self.domain[i]) for i in self.nodes])
         return maxsupp<tau
-
-    def blacklist(self, dic):
-        # add invalid node to blacklist
-        for i in dic.values():
-            self.blacklistnodes[i] += 1
 
 
 class FELS_dict:
@@ -161,14 +157,36 @@ class FELS_dict:
                 gs.add(j)
         return gs
 
-    def score(self, S_nodes, v):
+    def invalid_node_edge(self, S_nodes, dic, e):
+        # add invalid node to blacklist
+        invalid_nodes = self.elem(S_nodes).blacklistnodes
+        invalid_edges = self.elem(S_nodes).blacklistedges
+        for i in dic.values():
+            if i not in invalid_nodes.keys():
+                invalid_nodes[i] = 0
+            invalid_nodes[i] += 1
+        if e not in invalid_edges.keys():
+            invalid_edges[e] = 0
+        invalid_edges[e] += 1
+
+    def invalid_node_score(self, S_nodes, v):
         # invalidness of invalid nodes which cannot match with S
-        return self.elem(S_nodes).blacklistnodes[v]
+        invalid_nodes = self.elem(S_nodes).blacklistnodes
+        if v not in invalid_nodes.keys():
+            invalid_nodes[v] = 0
+        return invalid_nodes[v]
+
+    def invalid_edge_score(self, S_nodes, e):
+        # invalidness of invalid nodes which cannot match with S
+        invalid_edges = self.elem(S_nodes).blacklistedges
+        if e not in invalid_edges.keys():
+            invalid_edges[e] = 0
+        return invalid_edges[e]
 
     def invalid_col(self, S_nodes, v):
         # add invalid column of mni
         self.elem(S_nodes).invalid_col[v] += 1
-    def invalid_score(self, S_nodes, v):
+    def invalid_col_score(self, S_nodes, v):
         # invalidness of a column
         return self.elem(S_nodes).invalid_col[v]
 
@@ -238,8 +256,10 @@ def candidates(G, S_nodes, v, u):
 
     embeddings = []
     dic = {i:0  for i in S_nodes}
-    key_list = sorted(domain.keys())
-    return perm(domain, 0, dic, mni_table, key_list, G, lambda d: fels_dict.score(S_nodes, d))
+
+    # MNI column reordering
+    key_list = sorted(list(domain.keys()), key=lambda v: fels_dict.invalid_col_score(S_nodes, v), reverse=True)
+    return perm(domain, 0, dic, mni_table, key_list, G, lambda d: fels_dict.invalid_node_score(S_nodes, d))
 
 def exists_embeddings(G, S_nodes, v, u):
     # check whether where exists an isomorphism in domain with v->u mapping
@@ -247,12 +267,13 @@ def exists_embeddings(G, S_nodes, v, u):
     cand = candidates(G, S_nodes, v, u)
     for c in cand:
         iso = True
-        S_edges = G.subgraph(S_nodes).edges
+        # edge reordering
+        S_edges = sorted(list(G.subgraph(S_nodes).edges), key=lambda e: fels_dict.invalid_edge_score(S_nodes, e), reverse=True)
         C_edges = G.subgraph(c.values()).edges
         for e in S_edges:
             if len(S_edges) != len(C_edges) or (c[e[0]],c[e[1]]) not in C_edges:
                 iso = False
-                fels_dict.elem(S_nodes).blacklist(c)
+                fels_dict.invalid_node_edge(S_nodes, c, e)
                 break
         if iso:
             fels_dict.add(c, G)
@@ -271,9 +292,9 @@ def EVALUATE(G, tau, S_nodes):
     if fels_dict.is_frequent(S_nodes, tau, G):
         return True
 
-    # MNI col reordering
+    # MNI column reordering
     s_node_list = list(S_nodes)
-    s_node_list.sort(key=lambda v: fels_dict.invalid_score(S_nodes, v), reverse=True)
+    s_node_list.sort(key=lambda v: fels_dict.invalid_col_score(S_nodes, v), reverse=True)
 
     for v in s_node_list:
         count = 0
