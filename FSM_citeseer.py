@@ -16,7 +16,7 @@ def add_edge(f, G, cnt):
     print()
     return line
 
-tau = 20
+tau = 100
 fringe = FRINGE()
 G = nx.Graph()
 with open("citeseerInt.cites","r") as f:
@@ -26,4 +26,19 @@ with open("citeseerInt.cites","r") as f:
         cnt += 1
         line = add_edge(f,G, cnt)
 
+distinct = [i for i in fringe.MFS]
+for i in range(len(distinct)-1):
+    j = i+1
+    while 0<=j<len(distinct):
+        gi,gj = (G.subgraph(distinct[i]), G.subgraph(distinct[j]))
+        if nx.is_isomorphic(gi,gj):
+            distinct.pop(j)
+            j -= 1
+        j += 1
+for i in distinct:
+    nx.draw_networkx_nodes(G.subgraph(i),pos=pos)
+    nx.draw_networkx_labels(G.subgraph(i),pos=pos,labels=dict(zip(i,i)))
+    nx.draw_networkx_edges(G.subgraph(i),pos=pos,edge_color='#000000')
+    plt.savefig(str(i) + ".png")
+    plt.clf()
 
