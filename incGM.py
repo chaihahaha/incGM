@@ -4,6 +4,23 @@ import matplotlib.pyplot as plt
 import time
 from ortools.sat.python import cp_model
 from itertools import combinations
+class VarArraySolutionFinder(cp_model.CpSolverSolutionCallback):
+    """Print intermediate solutions."""
+
+    def __init__(self, X, S_nodes, fels_dict, G):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self.__solution_count = 0
+        self.X = X
+        self.S_nodes = S_nodes
+        self.fels_dict = fels_dict
+        self.G = G
+
+    def on_solution_callback(self):
+        self.__solution_count += 1
+        self.fels_dict.add({i: self.Value(self.X[i]) for i in self.S_nodes},self.G)
+
+    def solution_count(self):
+        return self.__solution_count
 
 def var_from_domain(model, name, domain):
     "initialize a variable with integer domain defined by domain"
@@ -238,21 +255,22 @@ def exists_embeddings_limited(G, S_nodes, subset):
         # element is in X <=> exists x which equals to element
         model.AddBoolOr(x_eq_subset)
     solver = cp_model.CpSolver()
-    status = solver.Solve(model)
-    if status == cp_model.FEASIBLE:
-        fels_dict.add({i: solver.Value(X[i]) for i in S_nodes}, G)
+    solution_finder = VarArraySolutionFinder(X, S_nodes, fels_dict, G)
+    status = solver.SearchForAllSolutions(model, solution_finder)
+    if solution_finder.solution_count()>0:
         return True
     else:
         return False
 
 
 def EVALUATE(G, tau, S_nodes):
-    if not nx.is_connected(G.subgraph(S_nodes)):
+    S = G.subgraph(S_nodes)
+    if not S or not nx.is_connected(S):
         return False
     ds = direct_subgraphs(G, S_nodes)
     fels_dict.intersection(S_nodes, ds, G, tau) # push down prunning
     # Automorphisms
-    gm = isomorphism.GraphMatcher(G.subgraph(S_nodes), G.subgraph(S_nodes))
+    gm = isomorphism.GraphMatcher(S, S)
     for automorphism in gm.isomorphisms_iter():
         fels_dict.add(automorphism, G)
 
@@ -294,7 +312,8 @@ def EVALUATE(G, tau, S_nodes):
     return True
 
 def SEARCHLIMITED(S_nodes,newnodes, tau, G):
-    if not nx.is_connected(G.subgraph(S_nodes)):
+    S = G.subgraph(S_nodes)
+    if not S or not nx.is_connected(S):
         return False
     ds = direct_subgraphs(G, S_nodes)
     fels_dict.intersection(S_nodes, ds, G, tau) # push down prunning

@@ -7,9 +7,17 @@ def add_edge(f, G, cnt):
     line = f.readline()
     e = tuple(int(i) for i in line.split(","))
 
-    print(cnt, "Adding edge:",e)
+    newgraph = nx.Graph()
+    if e[0] != e[1]:
+        print(cnt, "Adding edge:",e)
+        newgraph.add_edge(*e)
+    else:
+        print(cnt, "Adding node:",e[0])
+        newgraph.add_node(e[0])
+    print(newgraph.nodes)
+
     tik = time.time()
-    incGM_plus(G, fringe, tau, nx.Graph([e]))
+    incGM_plus(G, fringe, tau, newgraph)
     tok = time.time()
 
     print("TOTAL:", tok-tik)
@@ -18,7 +26,7 @@ def add_edge(f, G, cnt):
     print()
     return line
 
-tau = 500
+tau = 160
 fringe = FRINGE()
 G = nx.Graph()
 n_edges = 694
