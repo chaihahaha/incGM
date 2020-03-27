@@ -327,6 +327,7 @@ def EVALUATE(G, tau, S_nodes):
                     fels_dict.remove(S_nodes, v, u)
             if count == tau:
                 break
+        else:
             fels_dict.invalid_col(S_nodes, v)
             return False
     assert fels_dict.is_frequent(S_nodes, tau, G) == True
@@ -382,14 +383,14 @@ def incGM_plus(G, fringe, tau, newgraph):
         i = i + 1 - int(delete)
     return fringe.MFS
 
-base = nx.gnm_random_graph(5,9,1)
+base = nx.gnm_random_graph(15,25,1)
 pos = nx.spring_layout(base)
 nx.draw_networkx_nodes(base,pos=pos,node_color='#000000')
 nx.draw_networkx_edges(base,pos=pos,edge_color='#000000')
 plt.savefig("base.png")
 plt.clf()
 G = nx.Graph()
-tau = 1
+tau = 6
 fringe = FRINGE()
 cnt = 0
 for e in base.edges:
