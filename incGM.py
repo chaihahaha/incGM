@@ -358,10 +358,7 @@ def UPDATEFRINGE(fringe, S_nodes, isFreq, tau, G):
             if len(MFSi) == len(S_nodes) and MFSi != S_nodes:
                 u = MFSi | S_nodes
                 if u not in fringe.MIFS and u not in fringe.MFS:
-                    if not EVALUATE(G,tau,u):
-                        fringe.addMIFS(u)
-                    else:
-                        fringe.addMFS(u)
+                    fringe.addMIFS(u)
                     fels_dict.intersection(u, [MFSi, S_nodes], G, tau)
     return deleted
 
@@ -403,7 +400,6 @@ for e in base.edges:
     tok = time.time()
     print("TOTAL:",tok-tik)
 print("Num of MFS:",len(fringe.MFS))
-print(EVALUATE(G, tau, frozenset(G.nodes)))
 distinct = [i for i in fringe.MFS]
 for i in range(len(distinct)-1):
     j = i+1
