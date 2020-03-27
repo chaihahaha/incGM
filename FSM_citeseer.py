@@ -1,6 +1,7 @@
 from incGM import FRINGE, incGM_plus
 import networkx as nx
 import time
+import matplotlib.pyplot as plt
 
 def add_edge(f, G, cnt):
     line = f.readline()
@@ -13,13 +14,14 @@ def add_edge(f, G, cnt):
 
     print("TOTAL:", tok-tik)
     print("Num of MFS:", len(fringe.MFS))
+    print("Num of MIFS:", len(fringe.MIFS))
     print()
     return line
 
 tau = 500
 fringe = FRINGE()
 G = nx.Graph()
-n_edges = 700
+n_edges = 694
 with open("citeseerInt.cites","r") as f:
     cnt = 1
     has_next = add_edge(f,G, cnt)
@@ -38,6 +40,7 @@ for i in range(len(distinct)-1):
             distinct.pop(j)
             j -= 1
         j += 1
+pos = nx.spring_layout(G)
 for i in distinct:
     nx.draw_networkx_nodes(G.subgraph(i),pos=pos)
     nx.draw_networkx_labels(G.subgraph(i),pos=pos,labels=dict(zip(i,i)))
