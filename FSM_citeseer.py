@@ -16,15 +16,18 @@ def add_edge(f, G, cnt):
     print()
     return line
 
-tau = 100
+tau = 500
 fringe = FRINGE()
 G = nx.Graph()
+n_edges = 700
 with open("citeseerInt.cites","r") as f:
     cnt = 1
     has_next = add_edge(f,G, cnt)
     while has_next:
         cnt += 1
         line = add_edge(f,G, cnt)
+        if cnt>n_edges:
+            break
 
 distinct = [i for i in fringe.MFS]
 for i in range(len(distinct)-1):
