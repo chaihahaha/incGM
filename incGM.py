@@ -172,7 +172,7 @@ class FELS_dict:
             return False
         return self.elem(S_nodes).frequent(tau)
 
-    def is_infrequent(self, S_nodes, tau):
+    def is_infrequent(self, S_nodes, tau, G):
         # infrequentness of upper bound
         if not nx.is_connected(G.subgraph(S_nodes)):
             return True
@@ -268,7 +268,7 @@ def EVALUATE(G, tau, S_nodes):
         # store search state when timed out
         timedout_search = []
 
-        if fels_dict.is_infrequent(S_nodes, tau):
+        if fels_dict.is_infrequent(S_nodes, tau, G):
             return False
         if fels_dict.is_frequent(S_nodes, tau, G):
             return True
@@ -293,13 +293,13 @@ def EVALUATE(G, tau, S_nodes):
     assert fels_dict.is_frequent(S_nodes, tau, G) == True
     return True
 
-def SEARCHLIMITED(S_nodes,newnodes,G):
+def SEARCHLIMITED(S_nodes,newnodes, tau, G):
     if not nx.is_connected(G.subgraph(S_nodes)):
         return False
     ds = direct_subgraphs(G, S_nodes)
     fels_dict.intersection(S_nodes, ds, G, tau) # push down prunning
 
-    if fels_dict.is_infrequent(S_nodes, tau):
+    if fels_dict.is_infrequent(S_nodes, tau, G):
         return True
     if fels_dict.is_frequent(S_nodes, tau, G):
         return True
@@ -334,7 +334,7 @@ def incGM_plus(G, fringe, tau, newgraph):
     i = 0
     while 0 <= i < len(fringe.MIFS):
         S_nodes = fringe.MIFS[i]
-        embeds = SEARCHLIMITED(S_nodes, newnodes,G)
+        embeds = SEARCHLIMITED(S_nodes, newnodes,tau,G)
         if not embeds:
             isFreq = EVALUATE(G,tau,S_nodes)
         else:
@@ -343,35 +343,44 @@ def incGM_plus(G, fringe, tau, newgraph):
         i = i + 1 - int(delete)
     return fringe.MFS
 
-base = nx.gnm_random_graph(15,25,1)
-pos = nx.spring_layout(base)
-nx.draw_networkx_nodes(base,pos=pos,node_color='#000000')
-nx.draw_networkx_edges(base,pos=pos,edge_color='#000000')
-plt.savefig("base.png")
-plt.clf()
-G = nx.Graph()
-tau = 4
-fringe = FRINGE()
-cnt = 0
-for e in base.edges:
-    cnt += 1
-    print(cnt, "adding:",e)
-    tik = time.time()
-    incGM_plus(G,fringe,tau,base.subgraph(e))
-    tok = time.time()
-    print("TOTAL:",tok-tik)
-print("Num of MFS:",len(fringe.MFS))
-distinct = [i for i in fringe.MFS]
-for i in range(len(distinct)-1):
-    j = i+1
-    while 0<=j<len(distinct):
-        gi,gj = (G.subgraph(distinct[i]), G.subgraph(distinct[j]))
-        if nx.is_isomorphic(gi,gj):
-            distinct.pop(j)
-            j -= 1
-        j += 1
-for i in distinct:
-    nx.draw_networkx_nodes(G.subgraph(i),pos=pos,node_color='#000000')
-    nx.draw_networkx_edges(G.subgraph(i),pos=pos,edge_color='#000000')
-    plt.savefig(str(i) + ".png")
+if __name__=="__main__":
+    base = nx.gnm_random_graph(15,25,1)
+    pos = nx.spring_layout(base)
+    nx.draw_networkx_nodes(base,pos=pos)
+    nx.draw_networkx_labels(base,pos=pos,labels=dict(zip(base.nodes,base.nodes)))
+    nx.draw_networkx_edges(base,pos=pos,edge_color='#000000')
+    plt.savefig("base.png")
     plt.clf()
+    G = nx.Graph()
+    tau = 4
+    fringe = FRINGE()
+    cnt = 0
+    for e in base.edges:
+        cnt += 1
+        print(cnt, "adding:",e)
+        tik = time.time()
+        incGM_plus(G,fringe,tau,base.subgraph(e))
+        tok = time.time()
+        print("TOTAL:",tok-tik)
+    print("Num of MFS:",len(fringe.MFS))
+    #if fringe.MFS:
+    #    n1,n2 = len(fringe.MFS)-4, len(fringe.MFS)
+    #    for i in range(n1,n2):
+    #        print("Embeddings of ",fels_dict.elem(fringe.MFS[i]).nodes,":")
+    #        print(fels_dict.elem(fringe.MFS[i]).embeddings)
+    #        print()
+    distinct = [i for i in fringe.MFS]
+    for i in range(len(distinct)-1):
+        j = i+1
+        while 0<=j<len(distinct):
+            gi,gj = (G.subgraph(distinct[i]), G.subgraph(distinct[j]))
+            if nx.is_isomorphic(gi,gj):
+                distinct.pop(j)
+                j -= 1
+            j += 1
+    for i in distinct:
+        nx.draw_networkx_nodes(G.subgraph(i),pos=pos)
+        nx.draw_networkx_labels(G.subgraph(i),pos=pos,labels=dict(zip(i,i)))
+        nx.draw_networkx_edges(G.subgraph(i),pos=pos,edge_color='#000000')
+        plt.savefig(str(i) + ".png")
+        plt.clf()
