@@ -45,8 +45,6 @@ class FELS:
         self.mni = {i:dict() for i in S_nodes} # upper bound of solution
         self.embeddings = set() # set of tuples
         self.G = G
-        self.blacklistnodes = {i:0 for i in G.nodes}
-        self.blacklistedges = {i:0 for i in G.edges}
         self.invalid_col = {i:0 for i in self.nodes}
 
     def add(self, dic):
@@ -180,44 +178,6 @@ class FELS_dict:
             return True
         return self.elem(S_nodes).infrequent(tau)
 
-    def valid_node_edge(self, S_nodes, dic, e):
-        # add invalid node to blacklist
-        invalid_nodes = self.elem(S_nodes).blacklistnodes
-        invalid_edges = self.elem(S_nodes).blacklistedges
-        for i in dic.values():
-            if i not in invalid_nodes.keys():
-                invalid_nodes[i] = 0
-            invalid_nodes[i] -= 1
-        if e not in invalid_edges.keys():
-            invalid_edges[e] = 0
-        invalid_edges[e] -= 1
-
-    def invalid_node_edge(self, S_nodes, dic, e):
-        # add invalid node to blacklist
-        invalid_nodes = self.elem(S_nodes).blacklistnodes
-        invalid_edges = self.elem(S_nodes).blacklistedges
-        for i in dic.values():
-            if i not in invalid_nodes.keys():
-                invalid_nodes[i] = 0
-            invalid_nodes[i] += 1
-        if e not in invalid_edges.keys():
-            invalid_edges[e] = 0
-        invalid_edges[e] += 1
-
-    def invalid_node_score(self, S_nodes, v):
-        # invalidness of invalid nodes which cannot match with S
-        invalid_nodes = self.elem(S_nodes).blacklistnodes
-        if v not in invalid_nodes.keys():
-            invalid_nodes[v] = 0
-        return invalid_nodes[v]
-
-    def invalid_edge_score(self, S_nodes, e):
-        # invalidness of invalid nodes which cannot match with S
-        invalid_edges = self.elem(S_nodes).blacklistedges
-        if e not in invalid_edges.keys():
-            invalid_edges[e] = 0
-        return invalid_edges[e]
-
     def invalid_col(self, S_nodes, v):
         # add invalid column of mni
         self.elem(S_nodes).invalid_col[v] += 1
@@ -315,7 +275,7 @@ def EVALUATE(G, tau, S_nodes):
 
         # Lazy search
         # graph node reordering
-        d_v = sorted(list(fels_dict.domain(S_nodes)[v]), key=lambda d: fels_dict.invalid_node_score(S_nodes, d))
+        d_v = list(fels_dict.domain(S_nodes)[v])
         for u in d_v:
             if u in fels_dict.mni(S_nodes)[v]:
                 count += 1
@@ -390,7 +350,7 @@ nx.draw_networkx_edges(base,pos=pos,edge_color='#000000')
 plt.savefig("base.png")
 plt.clf()
 G = nx.Graph()
-tau = 6
+tau = 4
 fringe = FRINGE()
 cnt = 0
 for e in base.edges:
